@@ -1,0 +1,11 @@
+doctor_id,name,specialization,hospital,experience,location,available_days,available_time,consultation_fee,phone
+1,Dr. Ravi Kumar,Cardiologist,City Hospital,12,Bangalore,"Mon,Tue,Thu","09:00-13:00",800,9876543210
+2,Dr. Priya Sharma,Dermatologist,City Hospital,8,Bangalore,"Mon,Wed,Fri","10:00-16:00",700,9876543211
+3,Dr. Arun Nair,Orthopedic,City Hospital,15,Bangalore,"Tue,Thu,Sat","09:00-15:00",900,9876543212
+4,Dr. Sneha Rao,Pediatrician,City Hospital,10,Bangalore,"Mon,Tue,Wed","11:00-17:00",600,9876543213
+5,Dr. Mohan Reddy,Neurologist,City Hospital,18,Bangalore,"Wed,Fri","09:00-14:00",1200,9876543214
+6,Dr. Lakshmi Iyer,Gynecologist,City Hospital,14,Bangalore,"Mon,Tue,Fri","10:00-15:00",900,9876543215
+7,Dr. Vinod Patel,ENT,City Hospital,9,Bangalore,"Tue,Thu","09:00-12:00",650,9876543216
+8,Dr. Anita Das,Ophthalmologist,City Hospital,11,Bangalore,"Mon,Wed,Sat","10:00-13:00",750,9876543217
+9,Dr. Karthik Raj,Psychiatrist,City Hospital,13,Bangalore,"Thu,Fri","11:00-16:00",1000,9876543218
+10,Dr. Meera Joshi,Dentist,City Hospital,7,Bangalore,"Mon,Tue,Wed,Fri","09:00-18:00",500,9876543219
