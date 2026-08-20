@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Local Voice Agent</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 480px; text-align: center; }
+        button { background: #3b82f6; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
+        button:hover { background: #2563eb; }
+        .input-row { display: flex; gap: 8px; margin-top: 1rem; }
+        input[type="text"] { flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 0.95rem; }
+        .status { font-size: 0.85rem; color: #38bdf8; margin-top: 0.8rem; font-weight: 500; }
+        .chat-box { text-align: left; background: #0f172a; padding: 1rem; border-radius: 8px; height: 220px; overflow-y: auto; margin-top: 1rem; font-size: 0.9rem; border: 1px solid #334155; }
+        .user { color: #38bdf8; margin-bottom: 0.8rem; }
+        .bot { color: #4ade80; margin-bottom: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Local Voice Agent</h2>
+    <p style="color:#94a3b8; margin-top:-10px;">India Tourism Assistant</p>
+    
+    <div style="display:flex; gap:8px;">
+        <button id="micBtn" style="flex:1;">🎤 Start Mic</button>
+    </div>
+
+    <div class="input-row">
+        <input type="text" id="textInput" placeholder="Or type your question here..." />
+        <button id="sendBtn">Send</button>
+    </div>
+
+    <div class="status" id="status">Status: Connecting WebSocket...</div>
+    <div class="chat-box" id="chat"></div>
+</div>
+
+<script>
+    let ws;
+    let recognition;
+    let isListening = false;
+    
+    // --- Speech Synthesis Queue Manager ---
+    const synth = window.speechSynthesis;
+    let speechQueue = [];
+    let isSpeaking = false;
+
+    function processSpeechQueue() {
+        if (isSpeaking || speechQueue.length === 0) return;
+
+        isSpeaking = true;
+        const textToSpeak = speechQueue.shift();
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        utterance.onend = () => {
+            isSpeaking = false;
+            processSpeechQueue(); // Play next sentence in queue
+        };
+
+        utterance.onerror = (e) => {
+            console.error("TTS Error:", e);
+            isSpeaking = false;
+            processSpeechQueue();
+        };
+
+        synth.speak(utterance);
+    }
+
+    function enqueueSpeech(text) {
+        if (!text || !text.trim()) return;
+        speechQueue.push(text.trim());
+        processSpeechQueue();
+    }
+
+    function initWebSocket() {
+        ws = new WebSocket(`ws://${location.host}/ws`);
+
+        ws.onopen = () => {
+            document.getElementById('status').innerText = "Status: Connected to Server";
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "llm_text") {
+                const chat = document.getElementById('chat');
+                chat.innerHTML += `<div class="bot"><b>Agent:</b> ${msg.text}</div>`;
+                chat.scrollTop = chat.scrollHeight;
+                
+                // Add sentence to queue instead of interrupting
+                enqueueSpeech(msg.text);
+            }
+        };
+
+        ws.onclose = () => {
+            document.getElementById('status').innerText = "Status: Disconnected. Retrying...";
+            setTimeout(initWebSocket, 2000);
+        };
+    }
+
+    function sendQuery(text) {
+        if (!text.trim()) return;
+        
+        // Clear speech queue on new question
+        synth.cancel();
+        speechQueue = [];
+        isSpeaking = false;
+
+        const chat = document.getElementById('chat');
+        chat.innerHTML += `<div class="user"><b>You:</b> ${text}</div>`;
+        chat.scrollTop = chat.scrollHeight;
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "user_text", text: text }));
+        }
+    }
+
+    // Input Events
+    document.getElementById('sendBtn').onclick = () => {
+        const input = document.getElementById('textInput');
+        sendQuery(input.value);
+        input.value = "";
+    };
+
+    document.getElementById('textInput').onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('sendBtn').click();
+        }
+    };
+
+    // Voice Input Handling
+    document.getElementById('micBtn').onclick = () => {
+        const micBtn = document.getElementById('micBtn');
+        const status = document.getElementById('status');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Speech recognition is not supported in this browser. Use Google Chrome.");
+            return;
+        }
+
+        if (!recognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.trim();
+                status.innerText = `Recognized: "${transcript}"`;
+                sendQuery(transcript);
+            };
+
+            recognition.onerror = (e) => {
+                console.error("Speech Recognition Error:", e);
+                status.innerText = `Speech Error: ${e.error}. (Use the text input below if mic is blocked)`;
+                isListening = false;
+                micBtn.innerText = "🎤 Start Mic";
+                micBtn.style.background = "#3b82f6";
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    try { recognition.start(); } catch(err){}
+                } else {
+                    micBtn.innerText = "🎤 Start Mic";
+                    micBtn.style.background = "#3b82f6";
+                }
+            };
+        }
+
+        if (!isListening) {
+            isListening = true;
+            micBtn.innerText = "🛑 Stop Mic";
+            micBtn.style.background = "#dc2626";
+            status.innerText = "Listening for speech...";
+            recognition.start();
+        } else {
+            isListening = false;
+            micBtn.innerText = "🎤 Start Mic";
+            micBtn.style.background = "#3b82f6";
+            status.innerText = "Mic stopped.";
+            recognition.stop();
+        }
+    };
+
+    initWebSocket();
+</script>
+</body>
+</html>
