@@ -125,3 +125,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print("[WS] Client disconnected.")
+
+# run this on local for ui agent
+# uv run uvicorn server:app --host 0.0.0.0 --port 8000
+# open for http://localhost:8000/ and start conversation        
