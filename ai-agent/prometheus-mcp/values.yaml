@@ -1,0 +1,18 @@
+
+replicaCount: 1
+
+image:
+  repository: xxxx/tfs-docker/prometheus-mcp-server
+  tag: "0.18.0"
+  pullPolicy: IfNotPresent
+  digest: "sha256:649949f954c0bac9397e77fb17f280e0cac2fb481b1248fa536d630b9fc542b5"
+
+prometheus:
+  url: "http://thanos-query-frontend.prom-monitoring.svc.cluster.local:9090"
+  backend: "thanos"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Keep MCP internal; do not expose it through a LoadBalancer or Ingress.

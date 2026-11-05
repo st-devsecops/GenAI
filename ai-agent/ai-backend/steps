@@ -1,0 +1,52 @@
+sre-ai-agent/
+│
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 # Starts FastAPI and exposes the SRE investigation API.
+│   ├── config.py               # Loads all environment variables, URLs, credentials and guardrails.
+│   ├── models.py               # Defines API request/response and structured RCA models.
+│   ├── state.py                # Defines the shared state passed between LangGraph nodes.
+│   ├── graph.py                # Builds the controlled SRE investigation workflow.
+│   │
+│   ├── mcp/
+│   │   ├── __init__.py
+│   │   ├── client.py           # Connects to Grafana MCP and Elasticsearch MCP and calls their tools.
+│   │   └── registry.py         # Restricts the AI agent to approved/read-only MCP tools.
+│   │
+│   ├── rag/
+│   │   ├── __init__.py
+│   │   ├── embeddings.py       # Loads BGE-M3 and converts investigation questions into vectors.
+│   │   ├── qdrant.py           # Connects to Qdrant and performs vector searches.
+│   │   └── retriever.py        # Retrieves relevant runbooks, SOPs and previous RCAs.
+│   │
+│   └── nodes/
+│       ├── __init__.py
+│       ├── planner.py          # Creates the investigation plan for the incident.
+│       ├── rag.py              # Executes the knowledge/RAG search.
+│       ├── grafana.py          # Collects live metrics and alerts through Grafana MCP.
+│       ├── elasticsearch.py    # Collects live errors, 5xx and timeout logs through ES MCP.
+│       ├── evidence.py         # Combines and cleans all collected evidence for the LLM.
+│       └── analyst.py          # Uses the LLM to correlate evidence and generate structured RCA.
+│
+├── requirements.txt            # Pins Python dependencies used by the application.
+├── Dockerfile                  # Builds the production container including the BGE-M3 model.
+├── .dockerignore               # Prevents unnecessary files and secrets entering the Docker image.
+│
+└── k8s/
+    ├── namespace.yaml          # Creates the dedicated namespace for the SRE AI agent.
+    ├── configmap.yaml          # Stores non-sensitive application configuration.
+    ├── secret.yaml             # Stores sensitive MCP, Qdrant and LLM credentials.
+    ├── deployment.yaml         # Runs two production replicas with security and health checks.
+    ├── service.yaml            # Provides an internal Kubernetes endpoint for the agent.
+    ├── pdb.yaml                # Ensures at least one agent pod remains available during disruption.
+    ├── networkpolicy.yaml      # Restricts which systems the agent can communicate with.
+    └── kustomization.yaml      # Deploys all Kubernetes resources together.
+
+
+
+    app/
+└── prompts/
+    ├── __init__.py
+    ├── system.py
+    ├── planner.py
+    └── analyst.py

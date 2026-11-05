@@ -1,0 +1,40 @@
+replicaCount: 1
+
+image:
+  registry: xxxx
+  repository: tfs-docker/kubernetes_mcp_server
+  version: v0.1.1
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: kubernetes-mcp-server
+  automountToken: true
+
+rbac:
+  create: false
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+
+config:
+  port: "8080"
+  bind_address: "0.0.0.0"
+  log_level: 2
+  read_only: true
+  stateless: true
+  cluster_provider_strategy: "in-cluster"
+  toolsets:
+    - core
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

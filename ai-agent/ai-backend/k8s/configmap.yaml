@@ -1,0 +1,72 @@
+# Non-sensitive configuration for the SRE AI Agent.
+# Credentials are intentionally stored separately in a Kubernetes Secret.
+
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: sre-ai-agent-config
+  namespace: sre-ai
+
+data:
+
+  ENVIRONMENT: "prod"
+
+  # Qdrant is queried directly over its native REST API (no MCP).
+  RAG_ENABLED: "true"
+  QDRANT_URL: "http://qdrant.qdrant-vector.svc.cluster.local:6333"
+  QDRANT_COLLECTION: "sre_knowledge"
+  # Leave empty unless the collection uses named vectors.
+  QDRANT_VECTOR_NAME: ""
+
+  # Embeddings through Bifrost
+  EMBEDDING_BASE_URL: "xxx"
+  EMBEDDING_MODEL: "text-embedding-3-small"
+  EMBEDDING_DIMENSIONS: "1536"
+
+  # Prometheus MCP queries the configured Thanos backend directly.
+  METRICS_PROVIDER: "prometheus"
+  PROMETHEUS_MCP_URL: "http://prometheus-mcp-server.prometheus-mcp.svc:8080/mcp"
+  PROMETHEUS_MCP_TRANSPORT: "streamable_http"
+
+  # Existing Elasticsearch MCP.
+  ELASTICSEARCH_MCP_URL: "http://elasticsearch-mcp.es-mcp.svc.cluster.local:8500/mcp"
+  ELASTICSEARCH_MCP_TRANSPORT: "streamable_http"
+  ES_INDEX: "apisix-*,logstash-*,speech-*,target-*,tfs-*,.ds-tfs-*"
+
+  # Required range-query tool from Prometheus MCP discovery.
+  PROMETHEUS_QUERY_TOOL: "range_query"
+
+  # Allowed Elasticsearch MCP tools.
+  ES_ERROR_TOOL: "find_errors"
+  ES_5XX_TOOL: "find_5xx"
+  ES_TIMEOUT_TOOL: "find_timeouts"
+  ES_SEARCH_TOOL: "search_logs"
+  ES_AGGREGATE_TOOL: "aggregate_errors"
+
+  # Read-only Kubernetes resource and pod-log tools.
+  KUBERNETES_MCP_URL: "http://kubernetes-mcp-server.k8-mcp.svc.cluster.local:8080/mcp"
+  KUBERNETES_MCP_TRANSPORT: "streamable_http"
+
+  # Approved internal LLM endpoint.
+  LLM_BASE_URL: "xxxxx"
+  LLM_MODEL: "gpt-5.6-sol-20260709"
+
+  # Agent guardrails.
+  MAX_TOOL_CALLS: "12"
+  MAX_INVESTIGATION_SECONDS: "120"
+  MAX_TIME_RANGE_HOURS: "720"
+  MAX_METRIC_TIME_RANGE_HOURS: "720"
+  RAG_TOP_K: "5"
+  API_REQUESTS_PER_MINUTE: "30"
+  MAX_CONCURRENT_INVESTIGATIONS: "2"
+  MAX_REQUEST_BYTES: "16384"
+  MAX_CONTEXT_CHARS: "32000"
+  LLM_MAX_OUTPUT_TOKENS: "2000"
+  MAX_TOOL_RESULT_CHARS: "12000"
+  RAG_TIMEOUT_SECONDS: "15"
+  MCP_CONNECT_TIMEOUT_SECONDS: "10"
+  MCP_CALL_TIMEOUT_SECONDS: "30"
+  MCP_HEALTH_TIMEOUT_SECONDS: "2"
+  MCP_HEALTH_INTERVAL_SECONDS: "10"
+  MCP_RECONNECT_MAX_SECONDS: "30"

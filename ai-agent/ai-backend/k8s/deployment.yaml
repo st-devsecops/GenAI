@@ -1,0 +1,136 @@
+# Production deployment for the SRE AI Agent.
+# Runs two replicas so one pod can be unavailable during upgrades/disruptions.
+
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: sre-ai-agent
+  namespace: sre-ai
+
+spec:
+
+  replicas: 2
+
+  # Zero-downtime rolling deployment.
+  strategy:
+    type: RollingUpdate
+
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app: sre-ai-agent
+
+  template:
+
+    metadata:
+      labels:
+        app: sre-ai-agent
+
+    spec:
+
+      # Kubernetes inspection is performed through the read-only MCP service.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 90
+
+      securityContext:
+
+        runAsNonRoot: true
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+
+        - name: sre-ai-agent
+
+          # Replace with your signed internal image digest.
+          image: xxxx/tfs-docker/sre-ai-agent@sha256:d9bd29d91f880f3d86854a31944cfbb879f23639ef53be72eac458f06f546d17
+          imagePullPolicy: Always
+
+          ports:
+
+            - name: http
+              containerPort: 8080
+
+          # Load non-sensitive configuration.
+          envFrom:
+
+            - configMapRef:
+                name: sre-ai-agent-config
+
+            # Load credentials separately.
+            - secretRef:
+                name: sre-ai-agent-secrets
+
+          securityContext:
+
+            runAsUser: 10001
+            runAsGroup: 10001
+            runAsNonRoot: true
+
+            allowPrivilegeEscalation: false
+
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
+
+          # Adjust based on BGE-M3 and LLM workload testing.
+          resources:
+
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 18
+
+          # Determines whether the pod can receive traffic.
+          readinessProbe:
+
+            httpGet:
+              path: /readyz
+              port: 8080
+
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          # Restarts the container if the process becomes unhealthy.
+          livenessProbe:
+
+            httpGet:
+              path: /healthz
+              port: 8080
+
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Writable temporary directory because root filesystem is read-only.
+          volumeMounts:
+
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+
+        - name: tmp
+
+          emptyDir:
+            sizeLimit: 1Gi

@@ -1,0 +1,15 @@
+# Keeps at least one SRE AI Agent pod available during node drains
+# and other voluntary Kubernetes disruptions.
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+
+metadata:
+  name: sre-ai-agent
+  namespace: sre-ai
+
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: sre-ai-agent

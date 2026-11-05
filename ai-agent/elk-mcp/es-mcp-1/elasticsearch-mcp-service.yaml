@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-mcp
+  namespace: es-mcp
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "tfs-snet-hub-lb-eus-landingzone"
+spec:
+  type: LoadBalancer
+  selector:
+    app: elasticsearch-mcp
+  ports:
+    - name: http
+      port: 8500
+      targetPort: http
+      protocol: TCP
