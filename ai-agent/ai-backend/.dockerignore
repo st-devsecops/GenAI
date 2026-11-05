@@ -1,0 +1,15 @@
+.venv/
+.git/
+.gitignore
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.log
+.env
+.env.*
+k8s/secret.yaml
+*.tar
+*.tar.gz

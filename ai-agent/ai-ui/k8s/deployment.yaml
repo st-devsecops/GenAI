@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sre-ai-ui
+  namespace: sre-ai
+  labels:
+    app.kubernetes.io/name: sre-ai-ui
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sre-ai-ui
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sre-ai-ui
+        app.kubernetes.io/component: frontend
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 130
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sre-ai-ui
+          # Replace with the image you build and push to your registry.
+          image: xxxxx/tfs-docker/sre-ai-ui:0.0.18
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8787
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "8787"
+            # Change this to the actual Kubernetes Service DNS and port for your backend.
+            - name: BACKEND_BASE_URL
+              value: "http://sre-ai-agent.sre-ai.svc.cluster.local:8080"
+            - name: SRE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sre-ai-ui-secret
+                  key: SRE_API_KEY
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 15
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sre-ai-ui
+  namespace: sre-ai
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "tfs-snet-hub-lb-eus-landingzone"
+  labels:
+    app.kubernetes.io/name: sre-ai-ui
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: sre-ai-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sre-ai-ui
+  namespace: sre-ai
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sre-ai-ui
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sre-ai-ui-secret
+  namespace: sre-ai
+type: Opaque
+stringData:
+  SRE_API_KEY: "3c74655d54ccb079512523cd25229435505be0eaeac3ef5a7bb9ec0014b85bf2"

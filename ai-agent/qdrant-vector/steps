@@ -1,0 +1,66 @@
+QDRANT_API_KEY=$(openssl rand -hex 32)
+
+kubectl create secret generic qdrant-api-key \
+  -n qdrant-vector \
+  --from-literal=api-key="$QDRANT_API_KEY"
+
+kubectl run qdrant-test \
+  -n qdrant-vector \
+  --rm -it \
+  --restart=Never \
+  --image=xxxx/tfs-docker/curlimages/curl:8.8.0-linux-amd64 \
+  --overrides='
+{
+  "spec": {
+    "securityContext": {
+      "runAsNonRoot": true,
+      "seccompProfile": {
+        "type": "RuntimeDefault"
+      }
+    },
+    "containers": [
+      {
+        "name": "qdrant-test",
+        "image": "xxxx/tfs-docker/curlimages/curl:8.8.0-linux-amd64",
+        "command": ["curl"],
+        "args": ["-s", "-H", "api-key: $(QDRANT_API_KEY)", "http://qdrant:6333/collections"],
+        "env": [
+          {
+            "name": "QDRANT_API_KEY",
+            "valueFrom": {"secretKeyRef": {"name": "qdrant-api-key", "key": "api-key"}}
+          }
+        ],
+        "securityContext": {
+          "runAsNonRoot": true,
+          "allowPrivilegeEscalation": false,
+          "readOnlyRootFilesystem": true,
+          "capabilities": {
+            "drop": ["ALL"]
+          },
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        }
+      }
+    ]
+  }
+}'
+
+# RAG ingestion into the existing 768-dimensional, unnamed-vector collection.
+# Run only this section for an existing installation; do not regenerate its API key.
+# First build/push the updated backend image, then set NEW_BACKEND_IMAGE to its digest.
+: "${NEW_BACKEND_IMAGE:?Set NEW_BACKEND_IMAGE to the rebuilt backend image digest}"
+kubectl -n sre-ai patch configmap sre-ai-agent-config --type merge \
+  -p '{"data":{"EMBEDDING_DIMENSIONS":"768"}}'
+kubectl -n sre-ai set image deployment/sre-ai-agent \
+  sre-ai-agent="$NEW_BACKEND_IMAGE"
+kubectl -n sre-ai rollout status deployment/sre-ai-agent
+
+# Set RUNBOOK_FILE to an existing UTF-8 runbook; source is its stable logical ID.
+: "${RUNBOOK_FILE:?Set RUNBOOK_FILE to an existing UTF-8 runbook}"
+kubectl -n sre-ai exec -i deployment/sre-ai-agent -c sre-ai-agent -- \
+  python -m app.rag.ingest --source runbooks/tfs-aiva-stg.md < "$RUNBOOK_FILE"
+
+# Verify that the same embedding settings return ingested context.
+kubectl -n sre-ai exec deployment/sre-ai-agent -c sre-ai-agent -- \
+  python -c 'import asyncio; from app.rag.retriever import retrieve_knowledge; hits = asyncio.run(retrieve_knowledge("tfs-aiva-stg CPU and memory runbook")); print("RAG hits:", len(hits)); raise SystemExit(0 if hits else 1)'

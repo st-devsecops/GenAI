@@ -1,0 +1,83 @@
+replicaCount: 3
+
+image:
+  repository: xxx/tfs-docker/qdrant/qdrant
+  tag: v1.19.1
+  digest: sha256:0699e7733a6fa7fa7f6b95dcbed84ebb04584110da525cdfdef9f305c4f57738
+  pullPolicy: IfNotPresent
+
+config:
+  cluster:
+    enabled: true
+    p2p:
+      port: 6335
+
+  telemetry_disabled: true
+
+# Qdrant does not expand ${VAR} in its config; the chart mounts this key as local.yaml.
+apiKey:
+  valueFrom:
+    secretKeyRef:
+      name: qdrant-api-key
+      key: api-key
+
+readOnlyApiKey: false
+
+persistence:
+  enabled: true
+  size: 50Gi
+  accessModes:
+    - ReadWriteOnce
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+updateVolumeFsOwnership: false
+
+service:
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "tfs-snet-hub-lb-eus-landingzone"
+
+nodeSelector:
+  agentpool: worker
+
+containerSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 2000
+  allowPrivilegeEscalation: false
+  privileged: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+podSecurityContext:
+  fsGroup: 3000
+  fsGroupChangePolicy: Always
+  seccompProfile:
+    type: RuntimeDefault
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: qdrant
+        topologyKey: kubernetes.io/hostname
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: null
+  minAvailable: 2
+
+metrics:
+  serviceMonitor:
+    enabled: true
