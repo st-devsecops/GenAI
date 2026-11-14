@@ -1,0 +1,9 @@
+FROM python:3.12-slim
+RUN useradd --create-home --uid 10001 finsight
+WORKDIR /app
+RUN pip install --no-cache-dir streamlit==1.66.0 httpx==0.28.1
+COPY ui ./ui
+USER finsight
+ENV FINSIGHT_API_URL=http://api:8000
+EXPOSE 8501
+CMD ["streamlit", "run", "ui/streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501", "--browser.gatherUsageStats=false"]

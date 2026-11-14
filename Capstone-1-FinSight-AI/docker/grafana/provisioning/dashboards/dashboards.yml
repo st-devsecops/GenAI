@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: finsight
+    folder: FinSight AI
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,11 @@
+# Optional ML extras (free, run on CPU). Enable:
+#   - cross-encoder reranking   (sentence-transformers)
+#   - FinBERT sentiment         (transformers)
+#   - spaCy NER                 (then: python -m spacy download en_core_web_sm)
+# Without these, FinSight falls back to no-rerank / lexicon sentiment / regex NER.
+# Check what is active with: python -m scripts.doctor
+#
+# Intel Mac? (newest torch there is 2.2.2) -> install requirements-ml-intel-mac.txt instead.
+transformers==4.46.3
+sentence-transformers==3.3.1
+spacy==3.8.16

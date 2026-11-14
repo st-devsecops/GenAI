@@ -1,0 +1,14 @@
+# Core runtime - all free & open source
+fastapi==0.143.1
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.0
+httpx==0.28.1
+chromadb==1.5.9
+rank-bm25==0.2.2
+pypdf==6.20.1
+pdfplumber==0.11.10
+numpy>=1.26,<3  # range, not a pin: numpy 2.5 needs Python 3.12; Intel-Mac extras need <2
+prometheus-client==0.26.0
+python-multipart==0.0.32
+PyYAML==6.0.3

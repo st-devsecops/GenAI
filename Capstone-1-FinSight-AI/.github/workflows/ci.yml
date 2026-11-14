@@ -1,0 +1,29 @@
+# Free on GitHub Actions for public repos (2,000 min/month on private free accounts).
+name: ci
+
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check . && ruff format --check .
+      - run: pytest   # fake LLMs - fast, deterministic, no model download
+        # The original project repo only holds the TODOs, so its tests are expected to fail; your copy runs them.
+        if: github.repository != 'Skillfyme-R/GenAI-CapStone-Project'
+
+  # [W3] TODO - add an `eval-gate` job (needs: lint-test) that:
+  #   1. installs Ollama in the runner and pulls FREE small models (llama3.2:1b, llama3.2, nomic-embed-text)
+  #   2. ingests data/sample
+  #   3. runs `python -m evaluation.run_eval --min-hit-rate <x> --min-accuracy <y>` so a prompt or
+  #      retrieval change that lowers quality FAILS the pipeline
+  #   4. uploads reports/ as a build artifact
+  #
+  # [W3] TODO - add a `docker` job that builds both images and smoke-tests GET /health.

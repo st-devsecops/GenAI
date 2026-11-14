@@ -1,0 +1,217 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: finsight-api-storage
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finsight-api
+  labels:
+    app: finsight-api
+spec:
+  # Keep one replica: local Chroma/SQLite storage is mounted as a single-writer PVC.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: finsight-api
+  template:
+    metadata:
+      labels:
+        app: finsight-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: api
+          image: ghcr.io/OWNER/REPOSITORY-api:replace-me
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: FINSIGHT_CHROMA_DIR
+              value: /app/storage/chroma
+            - name: FINSIGHT_CACHE_DB
+              value: /app/storage/semantic_cache.sqlite
+            - name: FINSIGHT_DATA_DIR
+              value: /app/data
+            - name: FINSIGHT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: finsight-runtime
+                  key: FINSIGHT_API_KEY
+            - name: FINSIGHT_GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: finsight-runtime
+                  key: FINSIGHT_GROQ_API_KEY
+                  optional: true
+          envFrom:
+            - secretRef:
+                name: finsight-runtime
+                optional: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: storage
+              mountPath: /app/storage
+            - name: uploads
+              mountPath: /app/data/uploads
+            - name: tmp
+              mountPath: /tmp
+            - name: home-cache
+              mountPath: /home/finsight/.cache
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: finsight-api-storage
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: finsight-api-storage
+        - name: tmp
+          emptyDir: {}
+        - name: home-cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finsight-api
+spec:
+  type: ClusterIP
+  selector:
+    app: finsight-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finsight-ui
+  labels:
+    app: finsight-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: finsight-ui
+  template:
+    metadata:
+      labels:
+        app: finsight-ui
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: ui
+          image: ghcr.io/OWNER/REPOSITORY-ui:replace-me
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8501
+          env:
+            - name: FINSIGHT_API_URL
+              value: http://finsight-api:8000
+            - name: FINSIGHT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: finsight-runtime
+                  key: FINSIGHT_API_KEY
+          startupProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 18
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: streamlit
+              mountPath: /home/finsight/.streamlit
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: streamlit
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finsight-ui
+spec:
+  type: NodePort
+  selector:
+    app: finsight-ui
+  ports:
+    - name: http
+      port: 8501
+      targetPort: http
+      nodePort: 30851

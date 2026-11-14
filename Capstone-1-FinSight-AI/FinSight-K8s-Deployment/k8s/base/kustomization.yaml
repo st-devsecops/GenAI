@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: finsight
+resources:
+  - namespace.yaml
+  - app.yaml
+  - monitoring.yaml
+images:
+  - name: ghcr.io/OWNER/REPOSITORY-api
+    newName: ghcr.io/OWNER/REPOSITORY-api
+    newTag: replace-me
+  - name: ghcr.io/OWNER/REPOSITORY-ui
+    newName: ghcr.io/OWNER/REPOSITORY-ui
+    newTag: replace-me

@@ -1,0 +1,19 @@
+# FinSight Streamlit UI. Build from the repository root:
+# docker build -f docker/Dockerfile.ui -t finsight-ui:<tag> .
+FROM python:3.12-slim
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    FINSIGHT_API_URL=http://finsight-api:8000
+RUN groupadd --gid 10001 finsight \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin finsight \
+    && mkdir -p /app /home/finsight/.streamlit \
+    && chown -R 10001:10001 /app /home/finsight
+WORKDIR /app
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir streamlit==1.66.0 httpx==0.28.1
+COPY --chown=10001:10001 ui ./ui
+USER 10001:10001
+EXPOSE 8501
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)" || exit 1
+CMD ["streamlit", "run", "ui/streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true", "--browser.gatherUsageStats=false"]

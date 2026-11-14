@@ -1,0 +1,4 @@
+# Optional ML extras for Intel Macs (torch 2.2.2 is the newest build there and needs NumPy 1.x).
+# Tested: all 86 tests pass, re-ranker + FinBERT + spaCy active.
+-r requirements-ml.txt
+numpy<2

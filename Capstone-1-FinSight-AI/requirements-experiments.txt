@@ -1,0 +1,8 @@
+# Framework comparison experiment (experiments/langchain_baseline.py) - free & open source
+-r requirements.txt
+langchain==1.4.6
+langchain-classic==1.0.8
+langchain-core==1.6.10
+langchain-community==0.4.2
+langchain-ollama==1.1.0
+langchain-chroma==1.1.0

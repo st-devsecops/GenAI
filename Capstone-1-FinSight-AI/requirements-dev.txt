@@ -1,0 +1,4 @@
+-r requirements.txt
+streamlit==1.66.0
+pytest==9.1.1
+ruff==0.17.0

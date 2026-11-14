@@ -1,0 +1,45 @@
+{
+  "id": null,
+  "uid": "finsight-overview",
+  "title": "FinSight AI - Runtime Overview",
+  "tags": ["finsight", "rag", "application"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "API scrape status",
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "up{job=\"finsight-api\"}", "refId": "A"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Process resident memory (bytes)",
+      "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "process_resident_memory_bytes", "legendFormat": "{{job}}", "refId": "A"}]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Process CPU time (seconds)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "rate(process_cpu_seconds_total[5m])", "legendFormat": "{{job}}", "refId": "A"}]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Python garbage collections",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "rate(python_gc_objects_collected_total[5m])", "legendFormat": "{{generation}}", "refId": "A"}]
+    }
+  ]
+}

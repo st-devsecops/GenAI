@@ -1,0 +1,94 @@
+# FinSight AI on a free local Kubernetes cluster (minikube or kind).
+#   minikube start --cpus 4 --memory 8g
+#   eval $(minikube docker-env) && docker build -t finsight-api:1.0.0 -f docker/Dockerfile.api . \
+#       && docker build -t finsight-ui:1.0.0 -f docker/Dockerfile.ui .
+#   kubectl apply -f k8s/finsight.yaml
+#   kubectl -n finsight exec deploy/ollama -- ollama pull llama3.2      # repeat for llama3.1:8b, nomic-embed-text
+#   kubectl -n finsight port-forward svc/finsight-ui 8501:8501
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: finsight
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finsight-config
+  namespace: finsight
+data:
+  FINSIGHT_OLLAMA_URL: "http://ollama:11434"
+  FINSIGHT_SMALL_MODEL: "llama3.2"
+  FINSIGHT_STRONG_MODEL: "llama3.1:8b"
+  FINSIGHT_EMBED_MODEL: "nomic-embed-text"
+  FINSIGHT_RERANKER_ENABLED: "false"
+  FINSIGHT_AUTO_INGEST_DIR: "/app/data/sample"   # API ingests the samples itself on first start
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: finsight-secrets
+  namespace: finsight
+type: Opaque
+stringData:
+  FINSIGHT_API_KEY: "change-me"
+  FINSIGHT_GROQ_API_KEY: ""
+---
+# ---------------- Ollama (free local LLM server) ----------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: finsight
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 15Gi } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: finsight
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # one RWO model volume -> never run old and new pods side by side
+  selector: { matchLabels: { app: ollama } }
+  template:
+    metadata: { labels: { app: ollama } }
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.9.0
+          ports: [{ containerPort: 11434 }]
+          resources:
+            requests: { cpu: "2", memory: 6Gi }
+            limits: { memory: 10Gi }
+          volumeMounts: [{ name: models, mountPath: /root/.ollama }]
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: ollama-models }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: finsight
+spec:
+  selector: { app: ollama }
+  ports: [{ port: 11434, targetPort: 11434 }]
+---
+# ---------------- FinSight API ----------------
+# [W3] TODO - write the manifests for the API. Requirements:
+#   - PersistentVolumeClaim "finsight-storage" (2Gi) mounted at /app/storage
+#   - Deployment "finsight-api" running image finsight-api:1.0.0 on port 8000
+#       * envFrom the finsight-config ConfigMap and finsight-secrets Secret
+#       * readinessProbe on /ready, livenessProbe on /health
+#       * resource requests/limits, runAsNonRoot (uid 10001)
+#       * prometheus.io/* annotations so Prometheus can scrape /metrics
+#       * think: can this Deployment safely run >1 replica with an embedded Chroma store? Explain in your report.
+#   - Service "finsight-api" (ClusterIP, port 8000)
+#
+# ---------------- Streamlit UI ----------------
+# [W3] TODO - Deployment + Service "finsight-ui" (image finsight-ui:1.0.0, port 8501,
+#   FINSIGHT_API_URL=http://finsight-api:8000, API key from the Secret)
+#   and a HorizontalPodAutoscaler (1-3 replicas, 70% CPU).

@@ -1,0 +1,26 @@
+[project]
+name = "finsight-ai"
+version = "1.0.0"
+description = "FinSight AI - compliance-aware financial research copilot (GenAI Capstone 1)"
+requires-python = ">=3.11,<3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# The project imports everything you will need as a hint. Delete this section once your
+# implementation is complete - unused imports should then be removed, not ignored.
+"finsight/**" = ["F401"]
+"finetune/**" = ["F401"]
+"experiments/**" = ["F401"]
+"evaluation/**" = ["F401"]

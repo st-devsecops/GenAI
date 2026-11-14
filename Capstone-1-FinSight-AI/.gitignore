@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+storage/
+reports/
+data/uploads/
+data/raw/
+.pytest_cache/
+.ruff_cache/
+finetune/outputs/
+*.gguf

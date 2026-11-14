@@ -1,0 +1,5 @@
+# Ollama Modelfile for the LoRA fine-tuned FinSight model.
+#   ollama create finsight-qwen -f finetune/Modelfile
+FROM ./finsight-qwen-q8_0.gguf
+PARAMETER temperature 0.1
+PARAMETER num_ctx 8192
