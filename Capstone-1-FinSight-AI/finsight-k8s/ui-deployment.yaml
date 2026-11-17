@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finsight-ui
+  namespace: finsight
+  labels:
+    app: finsight-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: finsight-ui
+  template:
+    metadata:
+      labels:
+        app: finsight-ui
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: ui
+          image: standev001/genai:finsight-ui-0.1.0
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8501
+          env:
+            - name: FINSIGHT_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: finsight-config
+                  key: FINSIGHT_API_URL
+            - name: FINSIGHT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: finsight-secrets
+                  key: FINSIGHT_API_KEY
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

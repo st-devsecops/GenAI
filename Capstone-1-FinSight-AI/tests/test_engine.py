@@ -43,6 +43,26 @@ def test_pii_never_reaches_llm(engine):
     assert "ABCPE1234K" not in sent and "[PAN_REDACTED]" in sent
 
 
+def test_pii_masking_does_not_hide_requested_fact_from_retrieval(engine):
+    plain = engine.query("What was Trivenza Bank's EPS in FY2024-25?", use_cache=False)
+    masked = engine.query(
+        "My PAN is ABCPE1234K, what was Trivenza Bank's EPS in FY2024-25?",
+        use_cache=False,
+    )
+    assert plain.citations and masked.citations
+    assert masked.citations[0].source == plain.citations[0].source
+
+
+def test_pii_question_still_answers_non_sensitive_fact(engine):
+    result = engine.query(
+        "My PAN is ABCPE1234K, what was Trivenza Bank's EPS in FY2024-25?",
+        use_cache=False,
+    )
+    assert result.pii_masked == {"PAN": 1}
+    assert "ABCPE1234K" not in result.answer
+    assert result.citations
+
+
 def test_advice_question_gets_disclaimer(engine):
     res = engine.query("Should I buy Trivenza Bank shares given the net profit growth?")
     assert res.advice_disclaimer and "not investment advice" in res.answer

@@ -23,10 +23,12 @@ import json
 import re
 import statistics
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 from evaluation.metrics import answer_relevancy, rouge_l_f1
+from finsight.config import Settings
 from finsight.llm.providers import LLMError
 from finsight.rag.engine import FinSightEngine, GuardrailViolation
 from finsight.rag.prompts import PROMPT_VERSION, format_sources
@@ -192,22 +194,26 @@ def main() -> None:
     p.add_argument("--min-hit-rate", type=float, default=0.0, help="Fail (exit 1) if retrieval hit rate is below")
     args = p.parse_args()
 
-    # report = evaluate(FinSightEngine(), judge=args.judge, golden=args.golden)
-    engine = FinSightEngine()
+    # Keep evaluation vectors isolated from persistent indexes that may use a
+    # different embedding model (and therefore a different vector dimension).
+    with tempfile.TemporaryDirectory(prefix="finsight-eval-") as temp_dir:
+        settings = Settings(
+            chroma_dir=Path(temp_dir) / "chroma",
+            cache_db=Path(temp_dir) / "semantic_cache.sqlite",
+        )
+        engine = FinSightEngine(settings=settings)
+        sample_dir = Path(__file__).resolve().parents[1] / "data" / "sample"
+        ingested = engine.ingest_directory(sample_dir)
 
-    sample_dir = Path(__file__).resolve().parents[1] / "data" / "sample"
+        print(f"\nEvaluation corpus loaded: {len(ingested)} documents")
+        for doc in ingested:
+            print(f"  {doc['source']}: {doc['chunks']} chunks")
 
-    ingested = engine.ingest_directory(sample_dir)
-
-    print(f"\nEvaluation corpus loaded: {len(ingested)} documents")
-    for doc in ingested:
-        print(f"  {doc['source']}: {doc['chunks']} chunks")
-
-    report = evaluate(engine, judge=args.judge, golden=args.golden)
-    out_dir = Path("reports")
-    out_dir.mkdir(exist_ok=True)
-    out = out_dir / f"eval_{time.strftime('%Y%m%d_%H%M%S')}.json"
-    out.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        report = evaluate(engine, judge=args.judge, golden=args.golden)
+        out_dir = Path("reports")
+        out_dir.mkdir(exist_ok=True)
+        out = out_dir / f"eval_{time.strftime('%Y%m%d_%H%M%S')}.json"
+        out.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
 
     print("\n=== FinSight AI evaluation ===")
     for c in report["cases"]:

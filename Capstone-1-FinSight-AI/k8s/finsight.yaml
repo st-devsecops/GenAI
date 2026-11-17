@@ -17,10 +17,12 @@ metadata:
   name: finsight-config
   namespace: finsight
 data:
-  FINSIGHT_OLLAMA_URL: "http://ollama:11434"
-  FINSIGHT_SMALL_MODEL: "llama3.2"
-  FINSIGHT_STRONG_MODEL: "llama3.1:8b"
-  FINSIGHT_EMBED_MODEL: "nomic-embed-text"
+  FINSIGHT_SMALL_PROVIDER: "groq"
+  FINSIGHT_SMALL_MODEL: "openai/gpt-oss-20b"
+  FINSIGHT_STRONG_PROVIDER: "groq"
+  FINSIGHT_STRONG_MODEL: "openai/gpt-oss-120b"
+  FINSIGHT_EMBED_PROVIDER: "fastembed"
+  FINSIGHT_EMBED_MODEL: "BAAI/bge-small-en-v1.5"
   FINSIGHT_RERANKER_ENABLED: "false"
   FINSIGHT_AUTO_INGEST_DIR: "/app/data/sample"   # API ingests the samples itself on first start
 ---

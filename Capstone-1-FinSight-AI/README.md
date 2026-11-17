@@ -1,5 +1,18 @@
 # FinSight AI
 
+## Run locally with Podman
+
+With Ollama running on the host, build and start the API and Streamlit UI in one Podman pod:
+
+```bash
+podman build -f docker/Dockerfile.api -t finsight-api:local .
+podman build -f docker/Dockerfile.ui -t finsight-ui:local .
+scripts/podman-up.sh
+```
+
+The helper uses the host Ollama service and the locally available `llama3:latest`, `llama3.1:8b`, and `nomic-embed-text:latest` models. Open `http://localhost:8501` for the UI. Stop the pod with `scripts/podman-down.sh`; indexed data remains in the `finsight-storage` Podman volume.
+# FinSight AI
+
 ### Compliance-Aware Financial Research Copilot for Banking & Financial Services
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)

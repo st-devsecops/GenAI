@@ -15,7 +15,7 @@ HEADERS = {"X-API-Key": os.getenv("FINSIGHT_API_KEY", "")}
 st.set_page_config(page_title="FinSight AI", page_icon="📊", layout="wide")
 
 
-def api(method: str, path: str, **kwargs):
+def api(method: str, path: str, *, return_error: bool = False, **kwargs):
     try:
         r = httpx.request(method, f"{API_URL}{path}", headers=HEADERS, timeout=300, **kwargs)
     except httpx.HTTPError as exc:
@@ -23,6 +23,8 @@ def api(method: str, path: str, **kwargs):
         return None
     if r.status_code >= 400:
         detail = r.json().get("detail") if r.headers.get("content-type", "").startswith("application/json") else r.text
+        if return_error:
+            return {"_error_status": r.status_code, "_error_detail": detail}
         st.error(f"{r.status_code}: {detail}")
         return None
     return r.json()
@@ -87,8 +89,21 @@ with tab_chat:
         if tier != "auto (router)":
             payload["force_tier"] = tier
         with st.spinner("Retrieving and reasoning..."):
-            res = api("POST", "/v1/query", json=payload)
-        if res:
+            res = api("POST", "/v1/query", json=payload, return_error=True)
+        if res and "_error_status" in res:
+            detail = res["_error_detail"]
+            if res["_error_status"] == 422 and isinstance(detail, dict) and detail.get("guardrail"):
+                st.session_state.history.append(
+                    {
+                        "role": "assistant",
+                        "content": "Request blocked by the safety guardrail. I can’t reveal system instructions, internal configuration, or secrets.",
+                        "meta": f"guardrail: {detail['guardrail']}",
+                        "citations": [],
+                    }
+                )
+            else:
+                st.error(f"{res['_error_status']}: {detail}")
+        elif res:
             meta = (
                 f"{'⚡ cache hit · ' if res['cache_hit'] else ''}model `{res['model'] or '-'}` ({res['tier'] or '-'}) · "
                 f"{res['latency_ms']} ms · {'✅ grounded' if res['grounded'] else '⚠️ unverified'}"

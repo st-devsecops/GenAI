@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finsight-config
+  namespace: finsight
+data:
+  FINSIGHT_CHROMA_DIR: /app/storage/chroma
+  FINSIGHT_CACHE_DB: /app/storage/semantic_cache.sqlite
+  FINSIGHT_DATA_DIR: /app/data
+  FINSIGHT_API_URL: http://finsight-api:8000
+  FINSIGHT_SMALL_PROVIDER: groq
+  FINSIGHT_SMALL_MODEL: openai/gpt-oss-20b
+  FINSIGHT_STRONG_PROVIDER: groq
+  FINSIGHT_STRONG_MODEL: openai/gpt-oss-120b
+  FINSIGHT_EMBED_PROVIDER: fastembed
+  FINSIGHT_EMBED_MODEL: BAAI/bge-small-en-v1.5

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -21,7 +22,7 @@ from finsight.ingestion.loaders import (
 from finsight.llm.providers import (
     Embedder,
     LLMError,
-    OllamaEmbedder,
+    build_embedder,
     build_chat_model,
 )
 from finsight.llm.router import ModelRouter, score_complexity
@@ -91,10 +92,7 @@ class FinSightEngine:
     ):
         self.s = settings or get_settings()
 
-        self.embedder = embedder or OllamaEmbedder(
-            self.s.embed_model,
-            self.s.ollama_url,
-        )
+        self.embedder = embedder or build_embedder(self.s)
 
         self.router = router or ModelRouter(
             build_chat_model(
@@ -430,9 +428,22 @@ class FinSightEngine:
 
             safe_question = rewritten
 
+        retrieval_question = re.sub(
+            r"\b(?:my\s+)?(?:pan|email|ifsc|account|card|aadhaar|phone)\s+"
+            r"(?:is|number\s+is)\s*\[[A-Z]+_REDACTED\]\s*,?\s*",
+            "",
+            safe_question,
+            flags=re.IGNORECASE,
+        )
+        retrieval_question = re.sub(
+            r"\[[A-Z]+_REDACTED\]",
+            "",
+            retrieval_question,
+        ).strip()
+
         # 4. Embedding.
         query_embedding = self.embedder.embed_query(
-            safe_question
+            retrieval_question
         )
 
         # 5. Semantic cache lookup.
@@ -481,7 +492,7 @@ class FinSightEngine:
 
         # 6. Retrieve relevant documents.
         hits = self.retrieve(
-            safe_question,
+            retrieval_question,
             query_embedding,
             doc_ids,
         )
@@ -515,7 +526,7 @@ class FinSightEngine:
             )
 
         messages = build_messages(
-            safe_question,
+            retrieval_question,
             hits,
         )
 
@@ -525,7 +536,7 @@ class FinSightEngine:
         response, actual_tier = self.router.chat(
             requested_tier,
             messages,
-            temperature=0.1,
+            temperature=0.0,
             max_tokens=max_answer_tokens,
         )
 
@@ -568,7 +579,7 @@ class FinSightEngine:
             response, actual_tier = self.router.chat(
                 "strong",
                 messages,
-                temperature=0.1,
+                temperature=0.0,
                 max_tokens=800,
             )
 
@@ -588,7 +599,7 @@ class FinSightEngine:
             )
 
             retry_messages = build_messages(
-                safe_question,
+                retrieval_question,
                 hits,
                 retry=True,
             )
@@ -596,7 +607,7 @@ class FinSightEngine:
             response, actual_tier = self.router.chat(
                 "strong",
                 retry_messages,
-                temperature=0.1,
+                temperature=0.0,
                 max_tokens=800,
             )
 

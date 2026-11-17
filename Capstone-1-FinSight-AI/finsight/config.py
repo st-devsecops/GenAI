@@ -22,15 +22,18 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
 
     # Model router: simple questions -> small tier, analytical questions -> strong tier.
-    small_provider: str = "ollama"
-    small_model: str = "llama3.2"
-    strong_provider: str = "ollama"
-    strong_model: str = "llama3.1:8b"
+    small_provider: str = "groq"
+    small_model: str = "openai/gpt-oss-20b"
+    strong_provider: str = "groq"
+    strong_model: str = "openai/gpt-oss-120b"
     llm_timeout_s: float = 300.0  # CPU-only laptops can need minutes for an 8B answer
     temperature: float = 0.1
 
     # --- Embeddings ----------------------------------------------------------
-    embed_model: str = "nomic-embed-text"
+    # "fastembed" runs in-process (Groq has no embeddings API); "ollama" needs a running server.
+    embed_provider: str = "fastembed"
+    embed_model: str = "BAAI/bge-small-en-v1.5"
+    embed_cache_dir: str = ""
 
     # --- Retrieval -------------------------------------------------------------
     chunk_size: int = 900
