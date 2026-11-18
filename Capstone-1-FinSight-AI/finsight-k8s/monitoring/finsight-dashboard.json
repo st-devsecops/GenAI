@@ -1,0 +1,118 @@
+{
+  "id": null,
+  "uid": "finsight-ops",
+  "title": "FinSight AI - Operations Dashboard",
+  "tags": ["finsight", "ai", "sre", "monitoring"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total API Requests",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{"refId": "A", "expr": "sum(finsight_requests_total)", "legendFormat": "Requests"}]
+    },
+    {
+      "id": 2,
+      "title": "API Request Rate",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 6, "y": 0, "w": 9, "h": 8},
+      "targets": [{"refId": "A", "expr": "sum(rate(finsight_requests_total[5m]))", "legendFormat": "Requests/sec"}]
+    },
+    {
+      "id": 3,
+      "title": "Query Latency - p50 / p95",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 15, "y": 0, "w": 9, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.50, sum(rate(finsight_query_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p50"},
+        {"refId": "B", "expr": "histogram_quantile(0.95, sum(rate(finsight_query_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95"}
+      ]
+    },
+    {
+      "id": 4,
+      "title": "LLM Generation Latency - p50 / p95",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "targets": [
+        {"refId": "A", "expr": "histogram_quantile(0.50, sum(rate(finsight_llm_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p50"},
+        {"refId": "B", "expr": "histogram_quantile(0.95, sum(rate(finsight_llm_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95"}
+      ]
+    },
+    {
+      "id": 5,
+      "title": "LLM Token Throughput",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [{"refId": "A", "expr": "sum(rate(finsight_llm_tokens_total[5m]))", "legendFormat": "Tokens/sec"}]
+    },
+    {
+      "id": 6,
+      "title": "Model Router Decisions",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8},
+      "targets": [{"refId": "A", "expr": "sum(rate(finsight_route_total[5m]))", "legendFormat": "Routing decisions/sec"}]
+    },
+    {
+      "id": 7,
+      "title": "Semantic Cache Lookups",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8},
+      "targets": [{"refId": "A", "expr": "sum(rate(finsight_cache_total[5m]))", "legendFormat": "Cache lookups/sec"}]
+    },
+    {
+      "id": 8,
+      "title": "Guardrail Events",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8},
+      "targets": [{"refId": "A", "expr": "sum(rate(finsight_guardrail_events_total[5m]))", "legendFormat": "Guardrail events/sec"}]
+    },
+    {
+      "id": 9,
+      "title": "Ungrounded Answers",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 0, "y": 24, "w": 8, "h": 5},
+      "targets": [{"refId": "A", "expr": "finsight_ungrounded_answers_total", "legendFormat": "Ungrounded"}]
+    },
+    {
+      "id": 10,
+      "title": "Indexed Chunks",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 8, "y": 24, "w": 8, "h": 5},
+      "targets": [{"refId": "A", "expr": "finsight_indexed_chunks", "legendFormat": "Chunks"}]
+    },
+    {
+      "id": 11,
+      "title": "API Process CPU",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 16, "y": 24, "w": 8, "h": 5},
+      "targets": [{"refId": "A", "expr": "rate(process_cpu_seconds_total[5m])", "legendFormat": "CPU cores"}]
+    },
+    {
+      "id": 12,
+      "title": "API Process Memory",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"x": 0, "y": 29, "w": 12, "h": 7},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [{"refId": "A", "expr": "process_resident_memory_bytes", "legendFormat": "Resident memory"}]
+    }
+  ]
+}
