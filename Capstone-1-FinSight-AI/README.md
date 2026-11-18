@@ -1,742 +1,684 @@
-# FinSight AI
-
-## Run locally with Podman
-
-With Ollama running on the host, build and start the API and Streamlit UI in one Podman pod:
-
-```bash
-podman build -f docker/Dockerfile.api -t finsight-api:local .
-podman build -f docker/Dockerfile.ui -t finsight-ui:local .
-scripts/podman-up.sh
-```
-
-The helper uses the host Ollama service and the locally available `llama3:latest`, `llama3.1:8b`, and `nomic-embed-text:latest` models. Open `http://localhost:8501` for the UI. Stop the pod with `scripts/podman-down.sh`; indexed data remains in the `finsight-storage` Podman volume.
-# FinSight AI
-
-### Compliance-Aware Financial Research Copilot for Banking & Financial Services
-
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.143-009688?logo=fastapi&logoColor=white)
-![ChromaDB](https://img.shields.io/badge/ChromaDB-1.5-FF6F00)
-![Ollama](https://img.shields.io/badge/LLM-Ollama%20%7C%20Groq-000000)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-minikube-326CE5?logo=kubernetes&logoColor=white)
-![Cost](https://img.shields.io/badge/Cost-%E2%82%B90-success)
-
-> 📄 **Learners, start here: [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md).** It contains the business scenario, weekly milestones, submission checklist and grading rubric. Section [14](#14-build-roadmap--implementation-status) of this README lists every component you implement.
-
----
-
-## Table of Contents
-
-1. [Project Overview](#1-project-overview)
-2. [Business Problem](#2-business-problem)
-3. [Objectives](#3-objectives)
-4. [Key Features](#4-key-features)
-5. [Architecture](#5-architecture)
-6. [Tech Stack](#6-tech-stack)
-7. [Folder Structure](#7-folder-structure)
-8. [API Documentation](#8-api-documentation)
-9. [Security Implementation](#9-security-implementation)
-10. [CI/CD Pipeline](#10-cicd-pipeline)
-11. [Deployment Architecture](#11-deployment-architecture)
-12. [Monitoring & Observability](#12-monitoring--observability)
-13. [Installation & Setup](#13-installation--setup)
-14. [Build Roadmap & Implementation Status](#14-build-roadmap--implementation-status)
-15. [Evaluation Framework](#15-evaluation-framework)
-16. [Challenges & Learnings](#16-challenges--learnings)
-17. [Future Enhancements](#17-future-enhancements)
-18. [Troubleshooting](#18-troubleshooting)
-19. [License](#19-license)
-
----
+# FinSight AI – Financial Document Intelligence using GenAI
 
 ## 1. Project Overview
 
-| | |
-| --- | --- |
-| **Project Name** | FinSight AI |
-| **Domain** | Banking, Financial Services & Insurance (BFSI) |
-| **Type** | Retrieval-Augmented Generation (RAG) platform with guardrails and LLMOps |
-| **Target Users** | Research analysts, credit officers and compliance teams at a regulated bank |
-| **Runtime Cost** | ₹0. Every model, database and tool is free and open source |
+FinSight AI is a Generative AI-powered financial document intelligence platform designed to help users extract meaningful insights from financial reports, regulatory documents and business documents using natural language.
 
-**FinSight AI** is a production-style GenAI copilot that answers questions about annual reports, quarterly results, investor presentations and regulatory circulars. **Every answer is grounded in source documents and cites the exact document, page and section.**
+Traditional financial document analysis requires users to manually read lengthy reports, locate relevant financial information, compare figures across reporting periods and interpret business performance. This process is time-consuming and makes it difficult to efficiently retrieve information from multiple documents.
 
-Because it is designed for a **regulated financial institution**, the system goes beyond a typical chatbot:
+FinSight AI addresses this problem by combining Retrieval-Augmented Generation (RAG), hybrid search, intelligent model routing, semantic caching and security guardrails to provide context-grounded answers with source citations.
 
-- Customer PII is masked **before** it reaches any language model.
-- Prompt-injection attempts are detected and blocked.
-- Investment-advice questions receive a regulatory disclaimer.
-- Simple questions go to a small, cheap model; analytical questions go to a stronger model.
-- Repeated questions are served from a semantic cache at zero LLM cost.
+The platform also includes an evaluation framework and operational monitoring to measure answer quality, retrieval performance, latency, security behaviour and application health.
 
-**Business value:** a question such as *"How did the Gross NPA of this lender move over the last five quarters?"* typically takes an analyst about 30 minutes of searching through PDFs. FinSight AI aims to answer it in seconds, with an audit trail back to the source page.
+## 2. Problem Statement
+
+Financial reports, annual reports, regulatory guidelines and financial statements contain large amounts of structured and unstructured information.
+
+Users face several challenges:
+
+- Finding specific financial figures across lengthy documents.
+- Understanding financial information using natural language queries.
+- Comparing financial performance across reporting periods.
+- Identifying relevant information without manually searching entire documents.
+- Verifying AI-generated answers against the original source.
+- Reducing response latency and unnecessary LLM usage.
+- Preventing sensitive information from being exposed during AI processing.
+- Evaluating the reliability and accuracy of AI-generated responses.
+
+FinSight AI aims to provide an intelligent document analysis solution that improves the accessibility, efficiency, traceability and reliability of financial information retrieval.
+
+## 3. Solution Approach
+
+FinSight AI combines multiple AI and application engineering components into a single platform.
+
+### 3.1 Document ingestion
+
+Users can upload financial documents through the application interface.
+
+The ingestion pipeline:
+
+1. Accepts uploaded documents.
+2. Extracts text and document content.
+3. Processes the content into manageable chunks.
+4. Generates embeddings for semantic retrieval.
+5. Stores the processed chunks and embeddings in the vector store.
+
+### 3.2 Hybrid retrieval
+
+FinSight AI combines semantic retrieval and keyword-based retrieval to improve document search.
+
+- Vector retrieval identifies semantically relevant content.
+- BM25 keyword retrieval identifies relevant terms and phrases.
+- Reciprocal Rank Fusion (RRF) combines retrieval results.
+- Retrieved content is used as context for answer generation.
+
+This approach helps retrieve relevant information when queries use different wording from the source document.
+
+### 3.3 Retrieval-Augmented Generation
+
+The RAG pipeline retrieves relevant document context before generating a response.
+
+The workflow:
+
+1. Accept a user question.
+2. Retrieve relevant document chunks.
+3. Combine the question with retrieved context.
+4. Generate a context-grounded answer.
+5. Return the response with citations.
+
+The system is designed to answer using retrieved information and handle unsupported questions through its refusal and guardrail logic.
+
+### 3.4 Intelligent model routing
+
+FinSight AI uses model routing to select an appropriate model tier depending on the complexity of the query.
+
+- **Small tier:** Intended for simpler factual queries.
+- **Strong tier:** Intended for analytical, comparative or more complex queries.
+
+This approach aims to balance response quality, latency and LLM cost.
+
+### 3.5 Conversational follow-up handling
+
+The application supports follow-up questions using conversational context.
+
+A follow-up question can be rewritten into a standalone query before retrieval, allowing the system to understand the context of the previous conversation.
+
+### 3.6 Semantic caching
+
+FinSight AI implements semantic caching to reduce repeated LLM generation.
+
+When a similar query is received, the system checks the semantic cache. If an appropriate cached response is available, it can return the cached result instead of performing the complete generation process again.
+
+Benefits:
+
+- Reduced response latency.
+- Reduced unnecessary LLM calls.
+- Improved efficiency.
+- Potential reduction in LLM usage costs.
+
+### 3.7 Security and guardrails
+
+FinSight AI incorporates security mechanisms to improve safe AI processing.
+
+Implemented capabilities include:
+
+- Prompt injection detection and blocking.
+- PII detection and masking.
+- PAN masking.
+- Guardrail event tracking.
+- Handling unsupported or out-of-scope questions.
+- Citation and grounding checks.
+
+### 3.8 Evaluation framework
+
+The project includes a golden question set and automated evaluation framework.
+
+The evaluation covers:
+
+- Factual questions.
+- Analytical questions.
+- Out-of-scope questions.
+- Security and prompt injection cases.
+- PII-related cases.
+
+Metrics include retrieval quality, answer accuracy, citation rate, refusal accuracy, guardrail accuracy, answer relevancy and latency.
+
+### 3.9 Operational monitoring
+
+The application exposes Prometheus metrics for monitoring application and AI behaviour.
+
+Grafana provides visualisation of:
+
+- API request metrics.
+- Query latency.
+- LLM latency.
+- Token usage.
+- Model routing decisions.
+- Semantic cache hits and misses.
+- Guardrail events.
+- Ungrounded answers.
+- Indexed document chunks.
+- API process CPU and memory.
 
 ---
 
-## 2. Business Problem
-
-### What problem this project solves
-Banks process hundreds of pages of financial disclosures and regulatory circulars every day. Finding a specific figure, comparing metrics across periods, or confirming a compliance requirement is slow, manual and error-prone.
-
-### Existing challenges
-
-| Challenge | Impact |
-| --- | --- |
-| Information is spread across long, unstructured PDFs | Analysts spend hours on lookups instead of analysis |
-| Generic LLM chatbots hallucinate numbers | Unverifiable answers are a **compliance and reputational risk** |
-| Documents and queries can contain customer PII | Sending PII to an LLM can breach **DPDP Act** obligations |
-| LLMs are vulnerable to prompt injection | Attackers can override instructions or extract data |
-| Using the largest model for every query is expensive | Costs grow with usage, without any quality benefit for simple queries |
-
-### Why the solution was needed
-Leadership needed a copilot that is **trustworthy (cited and grounded), safe (PII and injection guardrails), compliant (no investment advice) and cost-efficient (routing and caching)**. Off-the-shelf chatbots meet none of these requirements together.
-
----
-
-## 3. Objectives
-
-| Category | Objectives |
-| --- | --- |
-| **Primary** | Answer financial questions accurately, with verifiable citations to document, page and section |
-| **Technical** | Hybrid retrieval (dense + BM25 + RRF), optional cross-encoder re-ranking, versioned prompts, conversation memory, automated evaluation, containerised deployment, Prometheus metrics |
-| **Business** | Cut research time, lower compliance risk, keep inference cost near zero with routing and caching |
-| **Quality targets** | Retrieval hit-rate@5 **≥ 0.90**, answer accuracy **≥ 0.70**, **100%** of injection attempts blocked, **100%** of out-of-scope questions refused |
-| **Expected outcomes** | A deployable API + UI, a measurable evaluation report, a Kubernetes deployment and an LLMOps dashboard |
-
----
-
-## 4. Key Features
-
-| Feature | Description | Business Benefit |
-| --- | --- | --- |
-| 📥 **Document ingestion** | PDF, Markdown and text loaders with page-level metadata; scanned PDFs are detected | Works with real-world financial disclosures |
-| ✂️ **Structure-aware chunking** | Recursive splitting with overlap, markdown section paths, tables kept intact | Retrieved context keeps its meaning and its source location |
-| 🔎 **Hybrid retrieval** | Dense vector search (ChromaDB) + BM25 keyword search, fused with Reciprocal Rank Fusion | Finds both semantic matches and exact jargon such as "GNPA" or "CRAR" |
-| 🎯 **Re-ranking** *(optional)* | Cross-encoder `ms-marco-MiniLM-L-6-v2` re-scores the fused results | Higher precision in the final top-k context |
-| 📌 **Grounded answers with citations** | Every fact is cited as `[n]`, linked to document, page and section; refuses when the answer is not in the sources | Auditable answers; no invented numbers |
-| 🔁 **Self-correction retry** | Answers with invalid citations are regenerated with a corrective instruction | Fewer ungrounded answers reach users |
-| 💬 **Conversation memory** | Follow-up questions ("and in Q1?") are rewritten into standalone queries | Natural multi-turn analyst workflow |
-| 🛡️ **PII masking** | PAN, Aadhaar, card numbers (Luhn-validated), IFSC, phone, account and email are masked before any LLM call | Data-privacy compliance (DPDP Act) |
-| 🚫 **Prompt-injection blocking** | Pattern-based detection rejects malicious instructions with HTTP 422 | Protects system behaviour and data |
-| ⚖️ **Advice disclaimer** | Investment-advice questions are flagged and receive a regulatory disclaimer | Regulatory compliance |
-| 🧠 **Semantic cache** | Similarity-based cache (threshold 0.95, 24 h TTL, scoped by document filter) stored in SQLite | Repeated questions cost nothing and return instantly |
-| 🔀 **Explainable model router** | Complexity scoring sends simple queries to a small model and analytical ones to a strong model, with fallback and logged reasons | Lower cost and latency without losing quality |
-| 🏷️ **Financial analytics** | Financial NER (fiscal periods, banking metrics; optional spaCy) and sentiment (lexicon or FinBERT) | Structured insight from unstructured text |
-| 📊 **Automated evaluation** | Golden-set harness: hit-rate, MRR, accuracy, ROUGE-L, answer relevancy, optional LLM-as-judge faithfulness | Measurable, regression-tested quality |
-| 🔐 **API-key authentication** | Optional `X-API-Key` header check on all business endpoints | Controlled access in shared environments |
-| 📈 **Observability** | Prometheus metrics for requests, latency, tokens, routing, cache and guardrail events | Production-grade LLMOps visibility |
-| 🐳 **Container & Kubernetes ready** | Multi-stage, non-root Docker images; Compose stack; minikube manifests with probes | Repeatable deployment from laptop to cluster |
-
----
-
-## 5. Architecture
-
-### High-level architecture
+## 4. Architecture
 
 ```mermaid
-flowchart LR
-    User([Analyst]) --> UI[Streamlit UI<br/>:8501]
-    UI -->|REST + X-API-Key| API[FinSight API<br/>FastAPI :8000]
+flowchart TD
+    A[User] --> B[Streamlit UI]
+    B --> C[FastAPI Backend]
 
-    subgraph Engine[FinSight Engine]
-        direction TB
-        G1[Input guardrails<br/>injection + PII mask]
-        MEM[Query rewriter<br/>conversation memory]
-        C[Semantic cache]
-        R[Hybrid retriever<br/>Dense + BM25 → RRF]
-        RR[Cross-encoder<br/>re-ranker]
-        RT[Model router<br/>small ⟷ strong]
-        GEN[Grounded generation<br/>versioned prompt]
-        G2[Output guardrails<br/>citations · PII · advice]
-        G1 --> MEM --> C --> R --> RR --> RT --> GEN --> G2
-    end
+    C --> D[Document Ingestion]
+    D --> E[Chunking and Embeddings]
+    E --> F[ChromaDB]
 
-    API --> Engine
-    R <--> VDB[(ChromaDB<br/>vectors)]
-    R <--> BM[(BM25<br/>keyword index)]
-    C <--> SQL[(SQLite<br/>cache)]
-    RT --> OL[Ollama<br/>llama3.2 · llama3.1:8b]
-    RT -.optional.-> GQ[Groq free tier]
-    GEN --> EMB[nomic-embed-text]
-    API -->|/metrics| PROM[Prometheus] --> GRAF[Grafana]
+    C --> G[Query Processing]
+    G --> H[Hybrid Retrieval]
+    H --> I[BM25 and Vector Search]
+    I --> J[RRF Fusion]
+
+    J --> K[Model Router]
+    K --> L[Small Model]
+    K --> M[Strong Model]
+
+    L --> N[Grounded Response]
+    M --> N
+
+    G --> O[Semantic Cache]
+    O --> N
+
+    N --> P[Citations and Response]
+    P --> B
+
+    C --> Q[Prometheus Metrics]
+    Q --> R[Prometheus]
+    R --> S[Grafana]
 ```
 
-### Query request flow
+### Technology stack
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as Analyst (UI)
-    participant A as FastAPI
-    participant G as Guardrails
-    participant M as Memory
-    participant C as Semantic Cache
-    participant R as Hybrid Retriever
-    participant L as Model Router / LLM
-
-    U->>A: POST /v1/query {question, history, doc_ids}
-    A->>G: detect injection, mask PII
-    alt injection detected
-        G-->>A: GuardrailViolation
-        A-->>U: 422 {guardrail, message}
-    end
-    G->>M: rewrite follow-up into standalone question
-    M->>C: lookup(question, scope)
-    alt cache hit (similarity ≥ 0.95, within TTL)
-        C-->>U: cached answer (cache_hit = true)
-    else cache miss
-        C->>R: dense + sparse search → RRF → re-rank → top-5
-        R->>L: score complexity, choose tier, generate with cited context
-        L->>G: validate [n] citations, mask PII, add advice disclaimer
-        G-->>L: retry once if citations are invalid
-        L->>C: store answer
-        L-->>U: answer + citations + route reasons + tokens + latency
-    end
-```
-
-### Component interactions & data flow
-
-| Stage | Data flow |
-| --- | --- |
-| **Ingestion** | File → loader (page text + metadata) → structure-aware chunker → embeddings (`nomic-embed-text`) → ChromaDB + BM25 index. Re-ingesting a document replaces its chunks instead of duplicating them. |
-| **Query** | Question → guardrails → rewrite → cache → hybrid retrieval → re-rank → router → LLM → citation validation → response. |
-| **Observability** | Every request, LLM call, cache lookup, routing decision and guardrail event updates a Prometheus metric, which Grafana visualises. |
-| **Evaluation** | The golden set runs through the same engine; results are written to `reports/` and can fail CI below quality thresholds. |
+| Component | Technology |
+|---|---|
+| Backend | Python, FastAPI |
+| Frontend | Streamlit |
+| LLM integration | Groq / configured LLM provider |
+| Embeddings | Configured embedding provider |
+| Vector database | ChromaDB |
+| Retrieval | Hybrid retrieval, BM25, vector search, RRF |
+| Model routing | Small and strong model tiers |
+| Cache | Semantic cache |
+| API monitoring | Prometheus metrics |
+| Monitoring dashboards | Grafana |
+| Containerisation | Docker |
+| Container orchestration | Kubernetes |
+| Local Kubernetes environment | Minikube |
+| Evaluation | Golden-set evaluation framework |
+| API validation | Health and readiness endpoints |
 
 ---
 
-## 6. Tech Stack
+## 5. Repository Structure
 
-### Frontend
-| Technology | Purpose |
-| --- | --- |
-| Streamlit 1.66 | Analyst UI: document upload, chat, citation viewer, routing and cache indicators |
-
-### Backend
-| Technology | Purpose |
-| --- | --- |
-| Python 3.12 | Core language |
-| FastAPI 0.143 + Uvicorn | REST API with OpenAPI docs at `/docs` |
-| Pydantic 2 / pydantic-settings | Request validation and `FINSIGHT_`-prefixed environment configuration |
-| httpx | Clients for Ollama and Groq |
-| pypdf + pdfplumber | PDF text and table extraction |
-
-### AI / ML
-| Technology | Purpose |
-| --- | --- |
-| Ollama: `llama3.2` / `llama3.1:8b` | Small and strong local LLM tiers |
-| Groq free tier *(optional)* | Larger hosted strong model (e.g. `llama-3.3-70b-versatile`) for machines without a GPU |
-| `nomic-embed-text` | Text embeddings |
-| rank-bm25 | Sparse keyword retrieval |
-| sentence-transformers *(optional)* | Cross-encoder re-ranking |
-| transformers / FinBERT *(optional)* | Financial sentiment |
-| spaCy *(optional)* | Named-entity recognition |
-| LangChain 1.x | Framework comparison experiment (`EnsembleRetriever`, LCEL) |
-| PEFT / LoRA *(bonus)* | Fine-tuning Qwen2.5-0.5B on Google Colab |
-
-### Data stores
-| Technology | Purpose |
-| --- | --- |
-| ChromaDB 1.5 (embedded) | Vector store for chunk embeddings and metadata |
-| SQLite | Semantic cache persistence |
-| Local filesystem (`storage/`, `data/uploads/`) | Index persistence and uploaded documents |
-
-### DevOps
-| Technology | Purpose |
-| --- | --- |
-| Docker (multi-stage, non-root) | API and UI images |
-| Docker Compose | Full local stack: API, UI, Prometheus, Grafana, optional Ollama |
-| Kubernetes (minikube / kind) | Cluster deployment with ConfigMap, Secret, PVCs, probes and HPA |
-| GitHub Actions | Lint (ruff), tests (pytest), evaluation quality gate, Docker smoke test |
-| ruff | Linting and formatting |
-
-### Monitoring
-| Technology | Purpose |
-| --- | --- |
-| prometheus-client | Application metrics at `/metrics` |
-| Prometheus 3.4 | Metrics collection (15 s scrape interval) |
-| Grafana 12 | LLMOps dashboards (auto-provisioned data source) |
-
----
-
-## 7. Folder Structure
+The project structure includes the following key components:
 
 ```text
-finsight-ai/
-├── finsight/                    # Application package
-│   ├── config.py                # Central settings (env vars prefixed FINSIGHT_)
-│   ├── api/main.py              # FastAPI app: endpoints, auth, error handling, metrics middleware
-│   ├── ingestion/               # loaders.py (PDF/MD/TXT), chunker.py (structure-aware chunks)
-│   ├── retrieval/               # store.py (Chroma + BM25), hybrid.py (RRF + re-ranker)
-│   ├── llm/                     # providers.py (Ollama/Groq clients), router.py (model router)
-│   ├── rag/                     # engine.py (orchestration), prompts.py (versioned prompts)
-│   ├── guardrails/              # pii.py (PII masking), policy.py (injection + citations)
-│   ├── cache/                   # semantic_cache.py (SQLite semantic cache)
-│   ├── analytics/               # entities.py (financial NER), sentiment.py
-│   └── observability/           # metrics.py (Prometheus counters, histograms, gauges)
-├── ui/streamlit_app.py          # Analyst-facing web UI
-├── evaluation/                  # golden_set.jsonl, metrics.py, run_eval.py (harness + CI gate)
-├── experiments/                 # langchain_baseline.py (framework comparison)
-├── scripts/                     # doctor.py (env check), ingest.py (CLI ingest), progress.py
-├── data/sample/                 # 4 synthetic financial documents (fictional companies)
-├── tests/                       # 92 acceptance tests + PDF fixtures
-├── docker/                      # Dockerfiles, Prometheus config, Grafana provisioning
-├── k8s/finsight.yaml            # Kubernetes manifests
-├── finetune/                    # LoRA fine-tuning (Colab) + Ollama Modelfile
-├── docs/                        # PROJECT_BRIEF.md, EVALUATION_REPORT.md
-├── .github/workflows/ci.yml     # CI pipeline
+Capstone-1-FinSight-AI/
+├── finsight/
+│   ├── api/
+│   ├── ingestion/
+│   ├── retrieval/
+│   ├── rag/
+│   ├── llm/
+│   ├── security/
+│   ├── cache/
+│   └── evaluation/
+├── ui/
+├── scripts/
+├── evaluation/
+├── experiments/
+├── data/
+│   └── sample/
+├── docs/
+│   └── EVALUATION_REPORT.md
+├── docker/
+│   ├── Dockerfile.api
+│   ├── Dockerfile.ui
+│   ├── prometheus/
+│   └── grafana/
+├── k8s/
+│   └── monitoring/
+├── tests/
+├── requirements.txt
+├── requirements-ml.txt
+├── requirements-experiments.txt
 ├── docker-compose.yml
-├── .env.example
-└── requirements*.txt            # core, dev, ML extras, Intel-Mac extras, experiments
+└── README.md
 ```
 
-| Folder | Why it matters |
-| --- | --- |
-| `finsight/rag/` | The orchestration core: every query passes through `engine.py` |
-| `finsight/guardrails/` | Compliance controls: PII, injection and citation validation |
-| `evaluation/` | The quality contract: thresholds here gate deployments |
-| `tests/` | Acceptance criteria for every component, run with fake LLMs (fast, deterministic) |
-| `docker/`, `k8s/` | Deployment from laptop to cluster |
-
-### Sample corpus (fictional)
-
-| Document | Type |
-| --- | --- |
-| `trivenza_bank_annual_report_fy2025.md` | Annual report |
-| `trivenza_bank_q1_fy2026_results.md` | Quarterly results |
-| `solvantra_finance_investor_presentation_q4_fy2025.md` | Investor presentation |
-| `fsra_circular_digital_lending_kyc_2025.md` | Regulatory circular |
-
-> Trivenza Bank, Solvantra Finance and the regulator FSRA are **fictional**. Answers about them are not real financial information.
+The exact repository contents may evolve as additional features and experiments are added.
 
 ---
 
-## 8. API Documentation
+## 6. Prerequisites
 
-### Overview
-REST API served by FastAPI. Interactive OpenAPI docs: **`http://localhost:8000/docs`**.
+Ensure the following tools are installed.
 
-### Authentication
-If `FINSIGHT_API_KEY` is set, all `/v1/*` endpoints require the header `X-API-Key: <key>`. If it is empty, authentication is disabled for local development.
+| Dependency | Purpose |
+|---|---|
+| Python 3.12 | Backend and AI application |
+| pip | Python dependency installation |
+| Git | Source code management |
+| Docker | Containerisation |
+| Docker Compose | Multi-container execution |
+| Minikube | Local Kubernetes deployment |
+| kubectl | Kubernetes management |
+| Prometheus | Metrics collection |
+| Grafana | Monitoring and visualisation |
 
-### Endpoints
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/health` | Liveness check: `{status, version}` |
-| `GET` | `/ready` | Readiness: index size, re-ranker status, entity backend, models, auto-ingest state. Returns 503 while ingesting |
-| `GET` | `/metrics` | Prometheus metrics |
-| `POST` | `/v1/query` | Ask a question, with optional document filter, cache control, forced tier and chat history |
-| `POST` | `/v1/documents` | Upload and index a `.pdf`, `.md` or `.txt` file (max 25 MB by default) |
-| `GET` | `/v1/documents` | List indexed documents |
-| `DELETE` | `/v1/documents/{doc_id}` | Remove a document and its chunks |
-| `POST` | `/v1/analyze/sentiment` | Financial sentiment of a text |
-| `POST` | `/v1/analyze/entities` | Financial entities (fiscal periods, metrics, …) in a text |
-| `DELETE` | `/v1/cache` | Clear the semantic cache |
-
-### Request example
-
-```bash
-curl -X POST http://localhost:8000/v1/query \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: $FINSIGHT_API_KEY" \
-  -d '{
-        "question": "And in Q1?",
-        "history": [
-          {"role": "user", "content": "What was Trivenza Bank'\''s Gross NPA in FY2024-25?"},
-          {"role": "assistant", "content": "..."}
-        ],
-        "doc_ids": null,
-        "use_cache": true,
-        "force_tier": null
-      }'
-```
-
-### Response shape
-
-```json
-{
-  "answer": "… [1] …",
-  "citations": [
-    {"n": 1, "doc_id": "…", "title": "…", "source": "…", "page": 3,
-     "section": "…", "snippet": "…", "scores": {"…": 0.0}}
-  ],
-  "grounded": true,
-  "model": "ollama:llama3.2",
-  "tier": "small",
-  "route_reasons": ["…"],
-  "cache_hit": false,
-  "cache_similarity": null,
-  "pii_masked": {},
-  "advice_disclaimer": false,
-  "latency_ms": 0,
-  "tokens": {},
-  "rewritten_question": "What was Trivenza Bank's Gross NPA in Q1 FY2025-26?",
-  "prompt_version": "v0.1"
-}
-```
-
-### Error handling
-
-| Status | When |
-| --- | --- |
-| `400` | Unsupported upload file type |
-| `401` | Missing or invalid `X-API-Key` |
-| `404` | Document not found on delete |
-| `413` | Upload exceeds `FINSIGHT_MAX_UPLOAD_MB` |
-| `422` | Request validation error, guardrail violation (`{"guardrail": kind, "message": …}`), or unreadable document |
-| `501` | A component is not implemented yet; the message names the TODO to complete |
-| `503` | LLM or embedding backend unavailable, or the service is not ready |
-
-### API security
-Input length limits on every field (questions ≤ 2,000 chars, history ≤ 10 turns, text ≤ 20,000 chars), a `user`/`assistant` role whitelist for history, a file-type allow-list, streamed size-limited uploads, and filename sanitisation.
+An API key for the configured LLM provider may be required depending on the provider and configuration.
 
 ---
 
-## 9. Security Implementation
+## 7. Installation and Setup
 
-| Control | Implementation |
-| --- | --- |
-| **Authentication** | Optional shared API key through the `X-API-Key` header (`FINSIGHT_API_KEY`) |
-| **PII protection** | PAN, Aadhaar, card (Luhn check), IFSC, phone, bank account and email are masked **before** embedding and before any LLM call, including in chat history |
-| **Prompt-injection defence** | Input policy detects instruction-override and data-exfiltration patterns and rejects the request (HTTP 422) |
-| **Output validation** | Citation numbers are checked against the retrieved sources; invalid answers trigger one corrective retry; ungrounded answers are counted |
-| **Regulatory compliance** | Investment-advice questions get a disclaimer; the answer must say so when it is not in the sources |
-| **Input validation** | Pydantic schemas with length limits and enumerated values |
-| **Upload safety** | Extension allow-list, 25 MB limit enforced while streaming, path-traversal-safe filenames |
-| **Secrets management** | `.env` (git-ignored) locally; Kubernetes `Secret` for the API key and Groq key in-cluster |
-| **Container hardening** | Multi-stage builds, slim base images, non-root user (UID 10001) |
-| **Data residency** | Default configuration runs fully local with Ollama; no data leaves the machine |
+### 7.1 Clone the repository
 
-Guardrails can be toggled with `FINSIGHT_PII_MASKING` and `FINSIGHT_INJECTION_BLOCKING`.
+```bash
+git clone https://github.com/st-devsecops/GenAI.git
+cd GenAI/Capstone-1-FinSight-AI
+```
+
+### 7.2 Create a Python virtual environment
+
+```bash
+python3 -m venv venv
+```
+
+Activate the environment.
+
+macOS/Linux:
+
+```bash
+source venv/bin/activate
+```
+
+### 7.3 Install dependencies
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Optional ML dependencies:
+
+```bash
+pip install -r requirements-ml.txt
+```
+
+Optional experiment dependencies:
+
+```bash
+pip install -r requirements-experiments.txt
+```
+
+Optional dependencies are required only for the associated experiments or features.
+
+### 7.4 Configure environment variables
+
+Configure the required provider credentials and application settings according to the configuration supported by the project.
+
+Example configuration:
+
+```bash
+export FINSIGHT_API_KEY="your-api-key"
+```
+
+The actual API key variable depends on the configured LLM provider and application configuration.
+
+Do not commit API keys, credentials, tokens or secrets to GitHub.
 
 ---
 
-## 10. CI/CD Pipeline
+## 8. Running FinSight AI Locally
 
-```mermaid
-flowchart LR
-    Dev[Developer] -->|push / PR| GH[GitHub]
-    GH --> LT[lint-test<br/>ruff check + format<br/>pytest · fake LLMs]
-    LT --> EG[eval-gate<br/>Ollama small models<br/>ingest data/sample<br/>run_eval --min-hit-rate --min-accuracy]
-    LT --> DK[docker<br/>build API + UI images<br/>smoke-test GET /health]
-    EG --> AR[(reports/ artifact)]
-```
+### 8.1 Start the backend
 
-| Stage | What happens |
-| --- | --- |
-| **Trigger** | Push to `main`, pull requests, or manual dispatch |
-| **Lint & test** | `ruff check`, `ruff format --check`, then 92 acceptance tests with fake LLMs: fast, deterministic, no model downloads |
-| **Evaluation quality gate** | Runs the golden set against free small models; **the pipeline fails** if hit-rate or accuracy drop below thresholds, so a prompt or retrieval change that lowers quality cannot be merged |
-| **Docker smoke test** | Builds both images and checks `GET /health` |
-| **Artifacts** | Evaluation reports are uploaded for every run |
+Run the FastAPI backend using the project's API entry point.
 
-> The `lint-test` job is provided. The `eval-gate` and `docker` jobs are part of the Week 3 build (see [Section 14](#14-build-roadmap--implementation-status)).
+The backend provides API endpoints for:
 
----
+- Health checks.
+- Readiness checks.
+- Document upload and management.
+- Question answering.
+- Document analysis.
+- Metrics collection.
 
-## 11. Deployment Architecture
+The API is configured to run on port 8000.
 
-### Docker Compose (local)
+### 8.2 Start the UI
 
-```mermaid
-flowchart TB
-    subgraph Host[Developer machine]
-        OLH[Ollama on host<br/>GPU / Apple Metal]
-        subgraph Compose[docker compose]
-            UI[ui :8501] --> API[api :8000]
-            PROM[prometheus :9090] -->|scrape /metrics| API
-            GRAF[grafana :3000] --> PROM
-            OLC[ollama :11434<br/>profile: ollama]
-        end
-        VOL[(volume<br/>finsight-storage)]
-    end
-    API --> VOL
-    API -->|host.docker.internal| OLH
-    API -.optional.-> OLC
-```
+Run the Streamlit application using the UI entry point configured in the project.
 
-The API **auto-ingests `data/sample`** on first start, and `/ready` returns 503 until indexing is complete.
+The UI is configured to communicate with the FastAPI backend.
 
-### Kubernetes (minikube)
+Access the application through the configured Streamlit URL.
 
-```mermaid
-flowchart TB
-    subgraph NS[namespace: finsight]
-        CM[ConfigMap<br/>finsight-config]
-        SEC[Secret<br/>finsight-secrets]
-        UID[Deployment finsight-ui<br/>+ HPA 1-3 replicas @70% CPU] --> USVC[Service finsight-ui :8501]
-        AD[Deployment finsight-api<br/>readiness /ready · liveness /health] --> ASVC[Service finsight-api :8000]
-        AD --> APVC[(PVC finsight-storage 2Gi)]
-        OD[Deployment ollama<br/>Recreate strategy] --> OSVC[Service ollama :11434]
-        OD --> OPVC[(PVC ollama-models 15Gi)]
-        UID --> ASVC
-        AD --> OSVC
-        CM -.envFrom.-> AD
-        SEC -.envFrom.-> AD
-    end
-    User([Analyst]) -->|port-forward| USVC
-```
+### 8.3 API endpoints
 
-| Component | Design |
-| --- | --- |
-| **Ollama** | Single replica, `Recreate` strategy (one ReadWriteOnce model volume), 2 CPU / 6–10 Gi memory |
-| **API** | Probes on `/ready` and `/health`, resource limits, non-root, Prometheus scrape annotations, persistent storage for the embedded Chroma index |
-| **UI** | Stateless; horizontally autoscaled |
-| **Config** | Non-secret settings in a ConfigMap; API and Groq keys in a Secret |
+| Endpoint | Purpose |
+|---|---|
+| `/health` | Application health check |
+| `/ready` | Readiness status |
+| `/v1/query` | Query the RAG application |
+| `/v1/documents` | Document management |
+| `/metrics` | Prometheus metrics |
+
+Refer to the API implementation for the exact request and response schemas.
 
 ---
 
-## 12. Monitoring & Observability
+## 9. Docker Deployment
 
-| Metric | Type | Labels | Insight |
-| --- | --- | --- | --- |
-| `finsight_requests_total` | Counter | endpoint, status | Traffic and error rate |
-| Query latency | Histogram | – | End-to-end p50 / p95 latency |
-| LLM latency | Histogram | – | Model response time |
-| `finsight_llm_tokens_total` | Counter | model, kind | Token usage and cost proxy per model |
-| `finsight_route_total` | Counter | tier | Small vs strong routing split |
-| `finsight_cache_total` | Counter | result | Cache hit rate and savings |
-| `finsight_guardrail_events_total` | Counter | type | PII masks, injection blocks, retries |
-| `finsight_ungrounded_answers_total` | Counter | – | Answers without valid citations |
-| `finsight_indexed_chunks` | Gauge | – | Knowledge-base size |
+FinSight AI includes Docker configuration for the backend and UI.
 
-**Dashboards:** Grafana at `http://localhost:3000`, with Prometheus auto-provisioned as a data source. The LLMOps dashboard covers query volume, p95 latency, cache hit-rate, router split, tokens by model and guardrail events. Dashboard JSON is loaded from `docker/grafana/dashboards/`.
+### Build API image
+
+```bash
+docker build \
+  -f docker/Dockerfile.api \
+  -t finsight-api:0.1.0 .
+```
+
+### Build UI image
+
+```bash
+docker build \
+  -f docker/Dockerfile.ui \
+  -t finsight-ui:0.1.0 .
+```
+
+### Start using Docker Compose
+
+```bash
+docker compose up -d
+```
+
+### Verify containers
+
+```bash
+docker compose ps
+```
+
+### Stop containers
+
+```bash
+docker compose down
+```
+
+Refer to the Docker Compose configuration for the configured ports, environment variables, volumes and services.
 
 ---
 
-## 13. Installation & Setup
+## 10. Kubernetes Deployment using Minikube
 
-### Prerequisites
+FinSight AI was deployed locally using Minikube.
 
-| Tool | Install | Needed for |
-| --- | --- | --- |
-| Python 3.12 | [python.org](https://www.python.org/downloads/) | Everything |
-| Ollama | [ollama.com/download](https://ollama.com/download) | Local LLMs and embeddings |
-| Docker Desktop | [docker.com](https://www.docker.com/products/docker-desktop/) | Week 3 |
-| minikube + kubectl | [minikube.sigs.k8s.io](https://minikube.sigs.k8s.io/docs/start/) | Week 3 |
+### 10.1 Start Minikube
 
-**Hardware:** 16 GB RAM recommended. Without a GPU, local 8B models are slow (about 50 s per answer on CPU), so use the free Groq tier for the strong model. On 8 GB RAM use `llama3.2:1b` (small) + Groq (strong). Apple Silicon runs the local models comfortably.
-
-### 1. Clone the repository
 ```bash
-git clone https://github.com/Skillfyme-R/GenAI-CapStone-Project.git
-cd GenAI-CapStone-Project
+minikube start
 ```
 
-### 2. Pull the free local models
+### 10.2 Load local images
+
+If images are built locally:
+
 ```bash
-ollama pull llama3.2          # small tier (2 GB)
-ollama pull llama3.1:8b       # strong tier (4.9 GB)
-ollama pull nomic-embed-text  # embeddings (274 MB)
+minikube image load finsight-api:0.1.0
+minikube image load finsight-ui:0.1.0
 ```
 
-### 3. Create the Python environment
+If using tagged images from another registry, load the corresponding image tags.
+
+### 10.3 Deploy FinSight
+
+Apply the Kubernetes manifests from the project's Kubernetes deployment directory.
+
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-cp .env.example .env              # Windows: copy .env.example .env
+kubectl apply -f k8s/
 ```
 
-> **Windows:** use PowerShell or Windows Terminal, install Python from python.org (tick *Add to PATH*), and use `py -3.12 -m venv .venv` if `python3.12` is not found.
+If the manifests are organised into separate deployment directories, apply the namespace, configuration, storage, API and UI manifests in their configured order.
 
-Optional ML extras (re-ranker, FinBERT, spaCy NER; CPU is fine):
+### 10.4 Verify the deployment
+
 ```bash
-pip install -r requirements-ml.txt && python -m spacy download en_core_web_sm
-# Intel Mac: use requirements-ml-intel-mac.txt instead
+kubectl get pods -n finsight
+kubectl get svc -n finsight
+kubectl get pvc -n finsight
 ```
 
-### 4. Environment variables
+### 10.5 Access the UI
 
-All settings are in [`finsight/config.py`](finsight/config.py) and can be overridden with `FINSIGHT_*` variables in `.env`.
+Access the deployed Streamlit application using the configured NodePort service or Minikube service access command.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `FINSIGHT_OLLAMA_URL` | `http://localhost:11434` | Ollama endpoint |
-| `FINSIGHT_SMALL_PROVIDER` / `_MODEL` | `ollama` / `llama3.2` | Small tier |
-| `FINSIGHT_STRONG_PROVIDER` / `_MODEL` | `ollama` / `llama3.1:8b` | Strong tier (`groq` supported) |
-| `FINSIGHT_GROQ_API_KEY` | – | Groq free-tier key |
-| `FINSIGHT_EMBED_MODEL` | `nomic-embed-text` | Embedding model |
-| `FINSIGHT_CHUNK_SIZE` / `_OVERLAP` | `900` / `150` | Chunking |
-| `FINSIGHT_TOP_K_FINAL` | `5` | Chunks passed to the LLM |
-| `FINSIGHT_RERANKER_ENABLED` | `true` | Cross-encoder re-ranking |
-| `FINSIGHT_CACHE_ENABLED` / `_THRESHOLD` / `_TTL_S` | `true` / `0.95` / `86400` | Semantic cache |
-| `FINSIGHT_PII_MASKING` / `FINSIGHT_INJECTION_BLOCKING` | `true` | Guardrails |
-| `FINSIGHT_API_KEY` | empty | Enables `X-API-Key` auth when set |
-| `FINSIGHT_LLM_TIMEOUT_S` | `300` | LLM timeout (raise on slow CPUs) |
-| `FINSIGHT_AUTO_INGEST_DIR` | empty | Folder the API ingests at startup if the index is empty |
+### 10.6 Verify API health
 
-### 5. Verify the environment
 ```bash
-python -m scripts.doctor      # checks Python, packages, Ollama, models, RAM, GPU, Docker
-python -m scripts.progress    # shows which acceptance tests pass, per week
-```
-Do not start coding until `doctor` reports **Environment ready**.
-
-### 6. Run locally
-```bash
-python -m scripts.ingest data/sample                    # index the sample documents (API not running)
-uvicorn finsight.api.main:app --reload                  # API  → http://localhost:8000/docs
-streamlit run ui/streamlit_app.py                       # UI   → http://localhost:8501
-
-# while the API is running, always ingest through it (one process must own the Chroma index)
-python -m scripts.ingest data/sample --api http://localhost:8000
+kubectl port-forward -n finsight svc/finsight-api 8000:8000
 ```
 
-### 7. Test & evaluate
-```bash
-pytest                                     # 92 acceptance tests
-pytest tests/test_chunker.py -x            # one component at a time
-python -m evaluation.run_eval              # golden-set evaluation → reports/
-python -m evaluation.run_eval --judge      # + LLM-as-judge faithfulness
-pip install -r requirements-experiments.txt && python -m experiments.langchain_baseline
-```
+In another terminal:
 
-### 8. Docker setup
 ```bash
-docker compose up -d --build
-# API :8000/docs · UI :8501 · Prometheus :9090 · Grafana :3000 (admin/admin)
-
-# no Ollama on the host? use the bundled one and set DOCKER_OLLAMA_URL=http://ollama:11434 in .env
-docker compose --profile ollama up -d
+curl http://localhost:8000/health
 ```
-
-### 9. Kubernetes setup
-```bash
-minikube start --cpus 4 --memory 8g
-eval $(minikube docker-env)
-docker build -t finsight-api:1.0.0 -f docker/Dockerfile.api .
-docker build -t finsight-ui:1.0.0  -f docker/Dockerfile.ui .
-kubectl apply -f k8s/finsight.yaml
-kubectl -n finsight exec deploy/ollama -- ollama pull llama3.2   # repeat for llama3.1:8b, nomic-embed-text
-kubectl -n finsight port-forward svc/finsight-ui 8501:8501
-```
-
-### 10. Verification
-```bash
-curl http://localhost:8000/health      # {"status":"ok", ...}
-curl http://localhost:8000/ready       # {"status":"ready", "indexed_chunks": ...}
-kubectl get pods -n finsight           # all pods Running
-```
-Then ask in the UI: *"What was Trivenza Bank's net profit in FY2024-25?"*. The answer should include a citation.
 
 ---
 
-## 14. Build Roadmap & Implementation Status
+## 11. Prometheus and Grafana Monitoring
 
-This repository is a **hands-on capstone**. Configuration, LLM clients, document loaders, the API, the UI, sentiment analysis, metrics, Docker images and all acceptance tests are **provided**. The GenAI engineering core is **yours to implement**: each TODO raises `NotImplementedError` with a pointer (e.g. `W1: implement _split_recursive`), and the API returns HTTP 501 naming the missing piece.
+FinSight AI includes application-level Prometheus metrics and a Grafana dashboard.
 
-| Week | Component | File | What you implement |
-| --- | --- | --- | --- |
-| **W1** | Chunking | `finsight/ingestion/chunker.py` | `_split_recursive`, `_sections` |
-| **W1** | Retrieval | `finsight/retrieval/store.py` | `dense_search`, `sparse_search` |
-| **W1** | Fusion | `finsight/retrieval/hybrid.py` | `reciprocal_rank_fusion` (+ `rerank` in W2) |
-| **W1** | Model router | `finsight/llm/router.py` | `score_complexity`, `ModelRouter.chat` |
-| **W1** | Financial NER | `finsight/analytics/entities.py` | `FISCAL_PERIOD`, `METRIC` patterns |
-| **W1** | Prompting | `finsight/rag/prompts.py` | `SYSTEM_PROMPT` |
-| **W1–W2** | RAG engine | `finsight/rag/engine.py` | `retrieve`, `query`, `rewrite_query` |
-| **W2** | PII guardrail | `finsight/guardrails/pii.py` | PII regexes, `_luhn_ok`, `mask_pii` |
-| **W2** | Policy guardrail | `finsight/guardrails/policy.py` | injection patterns, `detect_injection`, `validate_citations` |
-| **W2** | Semantic cache | `finsight/cache/semantic_cache.py` | `lookup`, `store` |
-| **W2** | Metrics | `evaluation/metrics.py` | `lcs_length`, `rouge_l_f1` |
-| **W2** | Framework comparison | `experiments/langchain_baseline.py` | LangChain retriever + LCEL chain |
-| **W2** | Golden set | `evaluation/golden_set.jsonl` | Extend to 30+ questions with reference answers |
-| **W3** | Kubernetes | `k8s/finsight.yaml` | API + UI manifests, HPA |
-| **W3** | CI/CD | `.github/workflows/ci.yml` | Evaluation gate, Docker smoke test |
-| **W3** | Observability | `docker/grafana/dashboards/` | LLMOps dashboard |
-| **W3** | Documentation | `README.md`, `docs/EVALUATION_REPORT.md` | Architecture, results, experiment log, demo video |
-| **Bonus** | Fine-tuning | `finetune/train_lora.py` | LoRA config, prompt-masked labels |
-| **Bonus** | Real documents | `data/raw/` | 5+ real RBI/SEBI documents + 10 golden questions |
+### 11.1 Prometheus
 
-```bash
-grep -rn "TODO" finsight evaluation experiments k8s .github finetune   # find every TODO
-python -m scripts.progress                                             # track completion per week
+Prometheus is deployed in the FinSight Kubernetes namespace and scrapes the API metrics endpoint.
+
+The configured scrape target:
+
+```text
+finsight-api.finsight.svc.cluster.local:8000
 ```
 
-**Exit criteria:** all 92 acceptance tests pass, hit-rate@5 ≥ 0.90, accuracy ≥ 0.70, 100% of injections blocked and 100% of out-of-scope questions refused. **Do not modify the tests**; graders run the original suite.
+Metrics endpoint:
+
+```text
+/metrics
+```
+
+### 11.2 Verify Prometheus
+
+Access Prometheus using port forwarding:
+
+```bash
+kubectl port-forward -n finsight svc/prometheus 9090:9090
+```
+
+Open:
+
+```text
+http://localhost:9090
+```
+
+Check the Prometheus targets page and verify that the FinSight API target is UP.
+
+### 11.3 Grafana
+
+Grafana is deployed with a Prometheus datasource.
+
+Access Grafana using the configured service or port forwarding:
+
+```bash
+kubectl port-forward -n finsight svc/grafana 3000:3000
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+Use the configured administrator credentials.
+
+### 11.4 Dashboard metrics
+
+The FinSight dashboard includes:
+
+| Dashboard panel | Metric |
+|---|---|
+| API requests | `finsight_requests_total` |
+| Query latency | `finsight_query_latency_seconds` |
+| LLM latency | `finsight_llm_latency_seconds` |
+| LLM token usage | `finsight_llm_tokens_total` |
+| Model routing | `finsight_route_total` |
+| Semantic cache | `finsight_cache_total` |
+| Guardrail events | `finsight_guardrail_events_total` |
+| Ungrounded answers | `finsight_ungrounded_answers_total` |
+| Indexed chunks | `finsight_indexed_chunks` |
+| Process CPU | `process_cpu_seconds_total` |
+| Process memory | `process_resident_memory_bytes` |
 
 ---
 
-## 15. Evaluation Framework
+## 12. Evaluation
 
-| Metric | Measures |
-| --- | --- |
-| **Hit-rate@5** | Whether the correct source document appears in the top 5 retrieved chunks |
-| **MRR** | How high the correct source is ranked |
-| **Answer accuracy** | Required keywords/figures are present in the answer |
-| **ROUGE-L F1** | Longest-common-subsequence overlap with the reference answer |
-| **Answer relevancy** | Embedding similarity between question and answer |
-| **Faithfulness** *(`--judge`)* | LLM-as-judge check that the answer is supported by the cited context |
-| **Refusal / injection rates** | Out-of-scope questions refused; adversarial prompts blocked |
+FinSight AI includes an automated golden-set evaluation framework.
 
-The harness is resilient: a slow or failed model call is scored as a failed case instead of stopping the run. Results go to `reports/` and are summarised in [`docs/EVALUATION_REPORT.md`](docs/EVALUATION_REPORT.md), together with the experiment change log and the LangChain-vs-custom retriever comparison.
+Run the evaluation:
 
----
+```bash
+python -m evaluation.run_eval
+```
 
-## 16. Challenges & Learnings
+Run the evaluation with the optional LLM judge:
 
-### Technical challenges
-| Challenge | Approach |
-| --- | --- |
-| Financial jargon (GNPA, CRAR, PCR) is poorly captured by embeddings alone | Hybrid dense + BM25 retrieval |
-| Dense and BM25 scores are on incompatible scales | **Reciprocal Rank Fusion** combines ranks, not raw scores, so no normalisation is needed |
-| Tables lose meaning when split | Structure-aware chunking keeps tables intact and records section paths |
-| Follow-up questions lack context for retrieval | An LLM rewrites them into standalone questions using recent history |
+```bash
+python -m evaluation.run_eval --judge
+```
 
-### Architecture challenges
-- **Embedded vector store vs. scaling:** Chroma runs embedded in the API process, so one process must own the index. This limits the API to a single replica and makes ingestion through the API mandatory while it runs.
-- **Readiness during ingestion:** `/ready` returns 503 until auto-ingestion finishes, so Kubernetes keeps traffic away from a half-built index.
-- **Container networking:** separate `DOCKER_OLLAMA_URL` and `FINSIGHT_OLLAMA_URL` variables, because `localhost` inside a container is the container itself.
+The evaluation framework measures the quality and performance of the RAG pipeline.
 
-### Performance challenges
-- 8B models on CPU take about 50 s per answer. The router sends simple questions to the small tier, and the strong tier can move to Groq's free hosted models.
-- The semantic cache removes LLM cost for repeated questions. It is scoped by document filter and expires after a TTL, so cached answers do not go stale.
+### Evaluation metrics
 
-### Security challenges
-- **PII is masked before embedding**, not just before generation, so it never persists in the vector store or in prompts.
-- Citation validation with a single corrective retry trades a small latency cost for far fewer ungrounded answers.
+| Metric | Description |
+|---|---|
+| Retrieval hit rate@5 | Whether relevant information is retrieved within the top five results |
+| MRR | Mean Reciprocal Rank of relevant retrieved content |
+| Answer accuracy | Accuracy of generated answers against expected results |
+| Citation rate | Percentage of answers with citations |
+| Refusal accuracy | Correct handling of unsupported or out-of-scope questions |
+| Guardrail accuracy | Correct handling of security-related test cases |
+| ROUGE-L | Text overlap evaluation |
+| Answer relevancy | Relevance of generated answers |
+| Faithfulness | LLM-judge-based evaluation when enabled |
+| p50 latency | Median query response latency |
 
-### Key learnings
-- In regulated domains, **evaluation is a release gate, not an afterthought**. Quality thresholds belong in CI.
-- Explainable routing (logged reasons) makes cost optimisation auditable.
-- Versioned prompts (`PROMPT_VERSION`) make prompt changes traceable in evaluation reports.
+The project also supports experiments involving retrieval configuration, prompt changes, model routing, reranking and retrieval parameters.
+
+Refer to `docs/EVALUATION_REPORT.md` for the final results and experiment analysis.
 
 ---
 
-## 17. Future Enhancements
+## 13. Security Features
 
-| Enhancement | Business Impact |
-| --- | --- |
-| Client-server vector database (Chroma server, Qdrant, pgvector) | Horizontal scaling of the API beyond one replica |
-| Role-based access and per-team document scopes | Enforce need-to-know access to confidential documents |
-| OAuth2 / SSO integration | Enterprise identity instead of a shared API key |
-| ML-based injection and PII classifiers | Catch attacks and PII formats that regexes miss |
-| LoRA-tuned small model as the default tier | Better domain accuracy at the lowest cost |
-| Streaming responses | Faster perceived latency for long analytical answers |
-| OCR pipeline for scanned PDFs | Support for legacy and scanned disclosures |
-| Automated ingestion from RBI/SEBI feeds | Always up-to-date regulatory knowledge base |
-| Alerting rules (latency, ungrounded-answer spikes) | Proactive incident response |
-| Multi-document comparison views in the UI | Faster cross-period and peer analysis |
+FinSight AI incorporates security mechanisms to protect the AI application and its processing pipeline.
 
----
+- Prompt injection detection.
+- PII detection and masking.
+- PAN masking.
+- Guardrail validation.
+- Handling of out-of-scope questions.
+- Grounding and citation validation.
+- Kubernetes deployment with configured security controls.
 
-## 18. Troubleshooting
-
-| Problem | Fix |
-| --- | --- |
-| `Ollama call failed ... Connection refused` | Start Ollama (`ollama serve`, or open the Ollama app) |
-| Answers are very slow (no GPU) | Use Groq for the strong model: `FINSIGHT_STRONG_PROVIDER=groq`, `FINSIGHT_STRONG_MODEL=llama-3.3-70b-versatile`, `FINSIGHT_GROQ_API_KEY=...` |
-| `LLM backend unavailable ... timed out` | Set `FINSIGHT_LLM_TIMEOUT_S=600` in `.env`, or use Groq. Close other heavy apps during evaluation |
-| API errors after running `scripts.ingest` while the API was up | Restart the API, then ingest with `--api http://localhost:8000` |
-| `NotImplementedError: W1: ...` | That function is your next TODO |
-| Docker container cannot reach Ollama | Keep `DOCKER_OLLAMA_URL=http://host.docker.internal:11434` (Linux: `http://172.17.0.1:11434`) |
-| Scanned PDF has no text | `ocrmypdf input.pdf output.pdf` (free), then ingest the output |
+Sensitive information should not be included in test documents or public demonstrations unless it is synthetic or appropriately protected.
 
 ---
 
-## 19. License
+## 14. Testing
 
-© Learnsyte Learning Private Limited (Skillfyme). All rights reserved.
+Run the project test suite using the configured test runner.
+
+```bash
+pytest
+```
+
+Tests cover application components, retrieval logic, security guardrails, RAG behaviour, evaluation functionality and other implemented modules.
+
+Refer to the project's test configuration and test directories for the exact scope of coverage.
+
+---
+
+## 15. Demo Scenarios
+
+The FinSight AI demo demonstrates the following capabilities:
+
+1. Upload a financial document.
+2. Ask a financial question and verify the source citation.
+3. Compare financial metrics across reporting periods.
+4. Demonstrate strong-model routing for analytical queries.
+5. Demonstrate follow-up query rewriting.
+6. Demonstrate semantic cache hits on repeated questions.
+7. Demonstrate prompt injection blocking.
+8. Demonstrate PAN masking.
+9. Show the evaluation report.
+10. Show the Grafana monitoring dashboard.
+11. Verify the Kubernetes deployment.
+
+---
+
+## 16. Design Decisions and Future Improvements
+
+Potential improvements for future iterations include:
+
+- Distributed vector database for scalable retrieval.
+- Distributed cache for multi-replica deployments.
+- Improved retrieval and reranking strategies.
+- Enhanced financial entity extraction.
+- More comprehensive financial reasoning and cross-document comparison.
+- Expanded golden-set evaluation.
+- Automated regression testing for RAG quality.
+- Kubernetes autoscaling and resilience improvements.
+- Advanced observability for LLM cost, token usage, response quality and failure analysis.
+- Improved authentication, access control and document-level security.
+- Multi-user document isolation.
+- Production-grade storage and backup strategies.
+
+The current capstone implementation focuses on demonstrating the end-to-end AI application, retrieval quality, security, evaluation, deployment and observability.
+
+---
+
+## 17. Learning Outcomes
+
+This project demonstrates practical implementation of:
+
+- Generative AI applications.
+- Retrieval-Augmented Generation.
+- Hybrid retrieval systems.
+- Embedding-based search.
+- BM25 keyword search.
+- Reciprocal Rank Fusion.
+- Intelligent LLM routing.
+- Semantic caching.
+- Conversational query rewriting.
+- PII masking.
+- Prompt injection protection.
+- RAG evaluation.
+- FastAPI development.
+- Streamlit UI development.
+- Docker containerisation.
+- Kubernetes deployment.
+- Prometheus monitoring.
+- Grafana dashboards.
+
+---
+
+## 18. Conclusion
+
+FinSight AI demonstrates how Generative AI can be applied to financial document intelligence through an end-to-end application that combines retrieval, generation, security, evaluation and monitoring.
+
+The platform enables users to interact with financial documents using natural language, retrieve relevant information, verify answers through citations and perform analytical queries.
+
+By integrating hybrid retrieval, intelligent model routing, semantic caching, security guardrails, evaluation and Kubernetes-based observability, FinSight AI provides a practical foundation for building more reliable and scalable AI-powered document analysis applications.
+
+---
+
+**Project:** FinSight AI  
+**Category:** Generative AI / RAG / Financial Document Intelligence  
+**Backend:** FastAPI  
+**Frontend:** Streamlit  
+**Vector Store:** ChromaDB  
+**Monitoring:** Prometheus and Grafana  
+**Deployment:** Docker and Kubernetes (Minikube)
